@@ -15,11 +15,11 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+
 import argparse
-import nodes
 import logging
 import sys
-import loadconf
+from timmy import nodes, loadconf
 from subprocess import Popen,PIPE
 import csv
 import sqlite3
@@ -40,7 +40,7 @@ def load_versions_database(sqlite_db, db_filename=None):
        7 - package filename
     '''
     if db_filename == None:
-        db_filename='release-versions.tsv'
+        db_filename='db/versions.tsv'
 
     with open(db_filename,'r') as db:
         csv_reader = csv.reader(db, delimiter='\t')
@@ -67,15 +67,10 @@ def load_versions_database(sqlite_db, db_filename=None):
 def main(argv=None):
     logging.basicConfig(level=logging.ERROR,
                         format='%(asctime)s %(levelname)s %(message)s')
-    conf = loadconf.load_conf('virgin-test.yaml')
-    n = nodes.Nodes(filesd=conf['rqdir'],
-                    logdir=conf['logdir'],
+    conf = loadconf.load_conf('config.yaml')
+    n = nodes.Nodes(conf=conf,
                     extended=0,
-                    fuelip=conf['fuelip'],
                     cluster=None,
-                    sshopts=conf['ssh']['opts'],
-                    sshvars=conf['ssh']['vars'],
-                    timeout=conf['timeout'],
                     destdir='/tmp')
     n.get_node_file_list()
     n.launch_ssh(conf['out-dir'])

@@ -2,9 +2,8 @@ ssh:
     opts: -oConnectTimeout=2 -oStrictHostKeyChecking=no -oUserKnownHostsFile=/dev/null -oLogLevel=error -lroot -oBatchMode=yes
     vars: OPENRC=/root/openrc IPTABLES_STR="iptables -nvL"
 fuelip:  127.0.0.1
-rqdir:   ./virgin-test-rq
+rqdir:   ./rq
 logdir:  ./logs
-out-dir: ./virgin-test-data
+out-dir: ./info
+node-status:  ['ready']
 timeout: 300
-find:
-    template: -name '*.log'
