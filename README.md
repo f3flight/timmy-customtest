@@ -1,8 +1,12 @@
-# timmy-plugin-virgintest
-Timmy plugin which finds customizations in Mirantis OpenStack and checks if MU installation would overwrite them.
+# timmy-virgintest
+Python-based tool which uses Timmy to find customizations in Mirantis OpenStack and check if MU installation would overwrite them.
 
-# Requirements
+# Prerequisites
 - Timmy (https://github.com/adobdin/timmy)
-- extract the plugin files into the root of Timmy folder
-- (optional) edit the config `./virgintest.yaml`
+- create `__init__.py` in the root of Timmy folder
+- copy/move Timmy folder into a python path (for example /usr/lib/python2.6/site-packages)
+
+# Usage 
+- (optional) edit the config `./config.yaml`
 - start the tool by running `./virgintest.py`
+- be happy
