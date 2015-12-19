@@ -1,0 +1,21 @@
+#!/bin/bash
+
+for pkg in $(dpkg-query -W -f='${Package}\n')
+do
+  if [ -f "/var/lib/dpkg/info/${pkg}:amd64.md5sums" ]
+  then
+    result=$(cd /; md5sum --quiet -c /var/lib/dpkg/info/${pkg}:amd64.md5sums 2>&1)
+  else
+    result=$(cd /; md5sum --quiet -c /var/lib/dpkg/info/${pkg}.md5sums 2>&1)
+  fi
+  if [ "$?" -ne 0 ]
+  then
+    if [ "$(echo $result | grep md5sums | grep -c 'No such file')" -gt 0 ]
+    then
+      :
+      #cannot verify md5sum
+    else
+      echo "$result" | grep -v 'did NOT match' | sed "s/^/${pkg}\t/"
+    fi
+  fi
+done
