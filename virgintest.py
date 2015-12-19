@@ -62,9 +62,8 @@ def load_versions_database(sqlite_db, db_filename=None):
             INSERT INTO versions (id, job_id, release, mu, os, package_name, package_version, package_filename)
             VALUES (?,?,?,?,?,?,?,?)''', csv_reader)
         sqlite_db.commit()
-        
 
-def main(argv=None):
+def collect():
     logging.basicConfig(level=logging.ERROR,
                         format='%(asctime)s %(levelname)s %(message)s')
     conf = loadconf.load_conf('config.yaml')
@@ -74,7 +73,11 @@ def main(argv=None):
                     destdir='/tmp')
     n.get_node_file_list()
     n.launch_ssh(conf['out-dir'])
-    
+    return n    
+
+def main(argv=None):
+    n = collect()
+
     versions_db = sqlite3.connect(':memory:')
     load_versions_database(versions_db)
     versions_db_cursor = versions_db.cursor()
@@ -85,12 +88,12 @@ def main(argv=None):
     db_has_release = versions_db_cursor.execute('''
         SELECT COUNT(*) FROM versions WHERE release = ?
         ''', (release,)).fetchall()
-    if db_has_release[0] == 0:
+    if db_has_release[0][0] == 0:
         print('Sorry, the database does not have any data for this Fuel release!')
         exit(0)
     
     print('versions verification analysis...')
-    file_list_cmd = Popen(['find', conf['out-dir'], '-name', '*.packagelist-*'], stdout=PIPE)
+    file_list_cmd = Popen(['find', n.conf['out-dir'], '-name', '*.packagelist-*'], stdout=PIPE)
     (file_list, err) = file_list_cmd.communicate()
     for file in file_list.rstrip().splitlines():
         if re.search('-ubuntu$', file):
@@ -108,54 +111,48 @@ def main(argv=None):
             for p_name, p_version in reader:
                 match = versions_db_cursor.execute('''
                     SELECT * FROM versions
-                    WHERE release = ? AND package_name = ? AND os = ?''', (release, p_name, node_os)).fetchall()
+                    WHERE release = ?
+                        AND os = ?
+                        AND package_name = ?
+                        AND package_version = ?''', (release, node_os, p_name, p_version)).fetchall()
                 if not match:
+                    # try all releases
                     match = versions_db_cursor.execute('''
                         SELECT * FROM versions
-                        WHERE package_name = ? AND os = ?''', (p_name, node_os)).fetchall()
+                        WHERE os = ?
+                            AND package_name = ?
+                            AND package_version = ?''', (node_os, p_name, p_version)).fetchall()
                     if match:
-                        print('env '+cluster_id+', node '+node_id+': package from a different release - '+p_name+' (version '+p_version+')')
-                    else:
-                        print('env '+cluster_id+', node '+node_id+': package not in db - '+p_name+' (version '+p_version+')')
-                else:
-                    version_match = False
-                    for row in match:
-                        if node_os == 'ubuntu':
-                            if re.search('^(\d:)?'+re.escape(row[6])+'$', p_version):
-                                version_match = True
-                                break
-                        elif node_os == 'centos':
-                            if p_version == row[6]:
-                                version_match = True
-                                break
-                    if not version_match:
-                        different_release_data = None
-                        all_releases_match = versions_db_cursor.execute('''
-                            SELECT * FROM versions
-                            WHERE package_name = ? AND os = ?''', (p_name, node_os)).fetchall()
-                        for row in all_releases_match:
-                            if node_os == 'ubuntu':
-                                if re.search('^(\d:)?'+re.escape(row[6])+'$', p_version):
-                                    version_match = True
-                                    different_release_data = row
-                                    break
-                            elif node_os == 'centos':
-                                if p_version == row[6]:
-                                    version_match = True
-                                    different_release_data = row
-                                    break
-                        if version_match:
-                            print('env '+cluster_id
-                                +', node '+node_id
-                                +': package version from a different release - '+p_name
-                                +', version '+p_version
-                                +', release data: '+str(different_release_data))
-                        else:
-                            print('env '+cluster_id+', node '+node_id+': package version not in db - '+p_name+', version '+p_version)
+                        print('env '+cluster_id
+                            +', node '+node_id
+                            +': package from a different release - '+p_name
+                            +', version '+p_version
+                            +', found in release:'+match.fetchone()[2])
+                        continue
+                    # try all versions for current release
+                    match = versions_db_cursor.execute('''
+                    SELECT * FROM versions
+                    WHERE release = ?
+                        AND os = ?
+                        AND package_name = ?''', (release, node_os, p_name)).fetchall()
+                    if match:
+                        print('env '+cluster_id
+                            +', node '+node_id
+                            +': package version not in db - '+p_name
+                            +', version '+p_version)
+                        continue
+                    # package with a different version might still be found 
+                    # in a different release but such details are not interesting
+                    # so just fail
+                    print('env '+cluster_id
+                        +', node '+node_id
+                        +': package not in db - '+p_name
+                        +' (version '+p_version+')')
+                    continue
 
     print('built-in md5 verification analysis...')
     ignored_packages = [ 'vim-tiny' ]
-    file_list_cmd = Popen(['find', conf['out-dir'], '-name', '*.packages-md5-verify-*'], stdout=PIPE)
+    file_list_cmd = Popen(['find', n.conf['out-dir'], '-name', '*.packages-md5-verify-*'], stdout=PIPE)
     (file_list, err) = file_list_cmd.communicate()
     for file in file_list.rstrip().splitlines():
         cluster_id = re.search('/cluster-(\d+)/', file).groups()[0]
