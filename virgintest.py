@@ -26,7 +26,7 @@ import re
 import os
 
 
-def load_versions_database(sqlite_db, db_filename=None):
+def load_versions_database(sqlite_db):
     '''
        fields:
        0 - line number
@@ -38,29 +38,29 @@ def load_versions_database(sqlite_db, db_filename=None):
        6 - package version
        7 - package filename
     '''
-    if db_filename == None:
-        db_filename='db/versions.tsv'
 
-    with open(db_filename,'r') as db:
-        csv_reader = csv.reader(db, delimiter='\t')
-        sqlite_db_cursor = sqlite_db.cursor()
-        sqlite_db_cursor.execute('''
-            CREATE TABLE versions
-            (
-                id INTEGER,
-                job_id INTEGER,
-                release TEXT,
-                mu TEXT,
-                os TEXT,
-                package_name TEXT,
-                package_version TEXT,
-                package_filename TEXT
-            )''')
-
-        sqlite_db_cursor.executemany('''
-            INSERT INTO versions (id, job_id, release, mu, os, package_name, package_version, package_filename)
-            VALUES (?,?,?,?,?,?,?,?)''', csv_reader)
-        sqlite_db.commit()
+    sqlite_db_cursor = sqlite_db.cursor()
+    sqlite_db_cursor.execute('''
+        CREATE TABLE versions
+        (
+            id INTEGER,
+            job_id INTEGER,
+            release TEXT,
+            mu TEXT,
+            os TEXT,
+            package_name TEXT,
+            package_version TEXT,
+            package_filename TEXT
+        )''')
+    db_dir='db/versions'
+    databases = [os.path.join(db_dir,release,'versions.tsv') for release in os.listdir(db_dir) if os.path.isdir(os.path.join(db_dir,release))]
+    for db_filename in databases:
+        with open(db_filename,'r') as db:
+            csv_reader = csv.reader(db, delimiter='\t')
+            sqlite_db_cursor.executemany('''
+                INSERT INTO versions (id, job_id, release, mu, os, package_name, package_version, package_filename)
+                VALUES (?,?,?,?,?,?,?,?)''', csv_reader)
+            sqlite_db.commit()
 
 def nodes_init():
     logging.basicConfig(level=logging.ERROR,
@@ -151,11 +151,11 @@ def main(argv=None):
     
     versions_db = sqlite3.connect(':memory:')
     load_versions_database(versions_db)
-    versions_db_cursor = versions_db.cursor()
-
+    
     release_cmd = Popen(['grep release /etc/fuel/version.yaml | cut -d\'"\' -f2'], stdout=PIPE, shell=True)    
     (release, err) = release_cmd.communicate()
     release = release.rstrip()
+    versions_db_cursor = versions_db.cursor()
     db_has_release = versions_db_cursor.execute('''
         SELECT COUNT(*) FROM versions WHERE release = ?
         ''', (release,)).fetchall()
