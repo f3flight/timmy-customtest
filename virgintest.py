@@ -16,7 +16,6 @@
 #    under the License.
 
 
-import argparse
 import logging
 import sys
 from timmy import nodes, loadconf
@@ -63,7 +62,7 @@ def load_versions_database(sqlite_db, db_filename=None):
             VALUES (?,?,?,?,?,?,?,?)''', csv_reader)
         sqlite_db.commit()
 
-def collect():
+def nodes_init():
     logging.basicConfig(level=logging.ERROR,
                         format='%(asctime)s %(levelname)s %(message)s')
     conf = loadconf.load_conf('config.yaml')
@@ -72,12 +71,84 @@ def collect():
                     cluster=None,
                     destdir='/tmp')
     n.get_node_file_list()
-    n.launch_ssh(conf['out-dir'])
     return n    
 
-def main(argv=None):
-    n = collect()
+def verify_versions(versions_db_cursor, nodes, node, release):
+    filename = (nodes.conf['out-dir']
+        +'/cmds/cluster-'+str(node.cluster)
+        +'/node-'+str(node.node_id)
+        +'/node-'+str(node.node_id)+'-'+node.ip+'-.packagelist-'+node.os_platform
+        )
+    if not os.path.exists(filename):
+        return
+    with open(filename,'r') as packagelist:
+        reader = csv.reader(packagelist, delimiter='\t')
+        for p_name, p_version in reader:
+            match = versions_db_cursor.execute('''
+                SELECT * FROM versions
+                WHERE release = ?
+                    AND os = ?
+                    AND package_name = ?
+                    AND package_version = ?''', (release, node.os_platform, p_name, p_version)).fetchall()
+            if not match:
+                # try all releases
+                match = versions_db_cursor.execute('''
+                    SELECT * FROM versions
+                    WHERE os = ?
+                        AND package_name = ?
+                        AND package_version = ?''', (node.os_platform, p_name, p_version)).fetchall()
+                if match:
+                    print('env '+str(node.cluster)
+                        +', node '+str(node.node_id)
+                        +': package from a different release - '+p_name
+                        +', version '+str(p_version)
+                        +', found in release:'+match.fetchone()[2])
+                    continue
+                # try all versions for current release
+                match = versions_db_cursor.execute('''
+                SELECT * FROM versions
+                WHERE release = ?
+                    AND os = ?
+                    AND package_name = ?''', (release, node.os_platform, p_name)).fetchall()
+                if match:
+                    print('env '+str(node.cluster)
+                        +', node '+str(node.node_id)
+                        +': package version not in db - '+p_name
+                        +', version '+str(p_version))
+                    continue
+                # package with a different version might still be found 
+                # in a different release but such details are not interesting
+                # so just fail
+                print('env '+str(node.cluster)
+                    +', node '+str(node.node_id)
+                    +': package not in db - '+p_name
+                    +' (installed version - '+str(p_version)+')')
+                continue
 
+def verify_builtin_md5(nodes, node):
+    ignored_packages = [ 'vim-tiny' ]
+    filename = (nodes.conf['out-dir']
+        +'/cmds/cluster-'+str(node.cluster)
+        +'/node-'+str(node.node_id)
+        +'/node-'+str(node.node_id)+'-'+node.ip+'-.packages-md5-verify-'+node.os_platform
+        )
+    if not os.path.exists(filename):
+        return
+    if os.stat(filename).st_size > 0:
+        with open(filename, 'r') as md5errorlist:
+            reader = csv.reader(md5errorlist, delimiter='\t')
+            for package, details in reader:
+                if package not in ignored_packages:
+                    print ('env '+str(node.cluster)
+                        +', node '+str(node.node_id)
+                        +': '+package
+                        +' - '+details)
+ 
+
+def main(argv=None):
+    n = nodes_init()
+    #n.launch_ssh(n.conf['out-dir'])
+    
     versions_db = sqlite3.connect(':memory:')
     load_versions_database(versions_db)
     versions_db_cursor = versions_db.cursor()
@@ -93,76 +164,12 @@ def main(argv=None):
         exit(0)
     
     print('versions verification analysis...')
-    file_list_cmd = Popen(['find', n.conf['out-dir'], '-name', '*.packagelist-*'], stdout=PIPE)
-    (file_list, err) = file_list_cmd.communicate()
-    for file in file_list.rstrip().splitlines():
-        if re.search('-ubuntu$', file):
-            node_os = 'ubuntu'
-        elif re.search('-centos$', file):
-            node_os = 'centos'
-        else:
-            print('env '+cluster_id+', node '+node_id+': unknown os, skipping data file %s' %(file))
-            continue
-
-        cluster_id = re.search('/cluster-(\d+)/', file).groups()[0]
-        node_id = re.search('/node-(\d+)/', file).groups()[0]
-        with open(file,'r') as packagelist:
-            reader = csv.reader(packagelist, delimiter='\t')
-            for p_name, p_version in reader:
-                match = versions_db_cursor.execute('''
-                    SELECT * FROM versions
-                    WHERE release = ?
-                        AND os = ?
-                        AND package_name = ?
-                        AND package_version = ?''', (release, node_os, p_name, p_version)).fetchall()
-                if not match:
-                    # try all releases
-                    match = versions_db_cursor.execute('''
-                        SELECT * FROM versions
-                        WHERE os = ?
-                            AND package_name = ?
-                            AND package_version = ?''', (node_os, p_name, p_version)).fetchall()
-                    if match:
-                        print('env '+cluster_id
-                            +', node '+node_id
-                            +': package from a different release - '+p_name
-                            +', version '+p_version
-                            +', found in release:'+match.fetchone()[2])
-                        continue
-                    # try all versions for current release
-                    match = versions_db_cursor.execute('''
-                    SELECT * FROM versions
-                    WHERE release = ?
-                        AND os = ?
-                        AND package_name = ?''', (release, node_os, p_name)).fetchall()
-                    if match:
-                        print('env '+cluster_id
-                            +', node '+node_id
-                            +': package version not in db - '+p_name
-                            +', version '+p_version)
-                        continue
-                    # package with a different version might still be found 
-                    # in a different release but such details are not interesting
-                    # so just fail
-                    print('env '+cluster_id
-                        +', node '+node_id
-                        +': package not in db - '+p_name
-                        +' (version '+p_version+')')
-                    continue
+    for node in n.nodes.values():
+        verify_versions(versions_db_cursor, n, node, release)
 
     print('built-in md5 verification analysis...')
-    ignored_packages = [ 'vim-tiny' ]
-    file_list_cmd = Popen(['find', n.conf['out-dir'], '-name', '*.packages-md5-verify-*'], stdout=PIPE)
-    (file_list, err) = file_list_cmd.communicate()
-    for file in file_list.rstrip().splitlines():
-        cluster_id = re.search('/cluster-(\d+)/', file).groups()[0]
-        node_id = re.search('/node-(\d+)/', file).groups()[0]
-        if os.stat(file).st_size > 0:
-            with open(file, 'r') as md5errorlist:
-                reader = csv.reader(md5errorlist, delimiter='\t')
-                for package, details in reader:
-                    if package not in ignored_packages:
-                        print ('env '+cluster_id+', node '+node_id+': '+package+' - '+details)
+    for node in n.nodes.values():
+        verify_builtin_md5(n, node)
 
     return 0
 
