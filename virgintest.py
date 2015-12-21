@@ -71,9 +71,16 @@ def nodes_init():
                     cluster=None,
                     destdir='/tmp')
     n.get_node_file_list()
+    n.get_release()
     return n    
 
-def verify_versions(versions_db_cursor, nodes, node, release):
+def verify_versions(versions_db_cursor, nodes, node):
+    db_has_release = versions_db_cursor.execute('''
+        SELECT COUNT(*) FROM versions WHERE release = ?
+        ''', (node.release,)).fetchall()
+    if db_has_release[0][0] == 0:
+        print('node-'+str(node.node_id)+' - sorry, the database does not have any data for Fuel release '+str(node.release)+'!')
+        return
     filename = (nodes.conf['out-dir']
         +'/cmds/cluster-'+str(node.cluster)
         +'/node-'+str(node.node_id)
@@ -89,7 +96,7 @@ def verify_versions(versions_db_cursor, nodes, node, release):
                 WHERE release = ?
                     AND os = ?
                     AND package_name = ?
-                    AND package_version = ?''', (release, node.os_platform, p_name, p_version)).fetchall()
+                    AND package_version = ?''', (node.release, node.os_platform, p_name, p_version)).fetchall()
             if not match:
                 # try all releases
                 match = versions_db_cursor.execute('''
@@ -109,7 +116,7 @@ def verify_versions(versions_db_cursor, nodes, node, release):
                 SELECT * FROM versions
                 WHERE release = ?
                     AND os = ?
-                    AND package_name = ?''', (release, node.os_platform, p_name)).fetchall()
+                    AND package_name = ?''', (node.release, node.os_platform, p_name)).fetchall()
                 if match:
                     print('env '+str(node.cluster)
                         +', node '+str(node.node_id)
@@ -147,29 +154,21 @@ def verify_builtin_md5(nodes, node):
 
 def main(argv=None):
     n = nodes_init()
-    #n.launch_ssh(n.conf['out-dir'])
+    n.launch_ssh(n.conf['out-dir'])
     
     versions_db = sqlite3.connect(':memory:')
     load_versions_database(versions_db)
-    
-    release_cmd = Popen(['grep release /etc/fuel/version.yaml | cut -d\'"\' -f2'], stdout=PIPE, shell=True)    
-    (release, err) = release_cmd.communicate()
-    release = release.rstrip()
     versions_db_cursor = versions_db.cursor()
-    db_has_release = versions_db_cursor.execute('''
-        SELECT COUNT(*) FROM versions WHERE release = ?
-        ''', (release,)).fetchall()
-    if db_has_release[0][0] == 0:
-        print('Sorry, the database does not have any data for this Fuel release!')
-        exit(0)
     
     print('versions verification analysis...')
     for node in n.nodes.values():
-        verify_versions(versions_db_cursor, n, node, release)
+        if node.status == 'ready':
+            verify_versions(versions_db_cursor, n, node)
 
     print('built-in md5 verification analysis...')
     for node in n.nodes.values():
-        verify_builtin_md5(n, node)
+        if node.status == 'ready':
+            verify_builtin_md5(n, node)
 
     return 0
 
