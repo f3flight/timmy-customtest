@@ -3,6 +3,7 @@ info/
 
 #md5 database is too big to store in git
 *.md5sums
+*.tar.gz
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
