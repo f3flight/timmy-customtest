@@ -1,6 +1,9 @@
 #timmy out-dir
 info/
 
+#md5 database is too big to store in git
+*.md5sums
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
