@@ -81,14 +81,14 @@ def verify_versions(versions_db_cursor, nodes, node):
     if db_has_release[0][0] == 0:
         print('node-'+str(node.node_id)+' - sorry, the database does not have any data for Fuel release '+str(node.release)+'!')
         return
-    filename = (nodes.conf['out-dir']
-        +'/cmds/cluster-'+str(node.cluster)
-        +'/node-'+str(node.node_id)
-        +'/node-'+str(node.node_id)+'-'+node.ip+'-.packagelist-'+node.os_platform
-        )
-    if not os.path.exists(filename):
+    command = '.packagelist-'+node.os_platform
+    if command not in node.mapcmds:
+        print('node '+str(node.node_id)+': versions data was not collected!')
         return
-    with open(filename,'r') as packagelist:
+    if not os.path.exists(node.mapcmds[command]):
+        print('node-'+str(node.node_id)+': versions data output file is missing!')
+        return
+    with open(node.mapcmds[command],'r') as packagelist:
         reader = csv.reader(packagelist, delimiter='\t')
         for p_name, p_version in reader:
             match = versions_db_cursor.execute('''
@@ -134,15 +134,15 @@ def verify_versions(versions_db_cursor, nodes, node):
 
 def verify_builtin_md5(nodes, node):
     ignored_packages = [ 'vim-tiny' ]
-    filename = (nodes.conf['out-dir']
-        +'/cmds/cluster-'+str(node.cluster)
-        +'/node-'+str(node.node_id)
-        +'/node-'+str(node.node_id)+'-'+node.ip+'-.packages-md5-verify-'+node.os_platform
-        )
-    if not os.path.exists(filename):
+    command = '.packages-md5-verify-'+node.os_platform
+    if command not in node.mapcmds:
+        print('node '+str(node.node_id)+': versions data was not collected!')
         return
-    if os.stat(filename).st_size > 0:
-        with open(filename, 'r') as md5errorlist:
+    if not os.path.exists(node.mapcmds[command]):
+        print('node-'+str(node.node_id)+': versions data output file is missing!')
+        return
+    if os.stat(node.mapcmds[command]).st_size > 0:
+        with open(node.mapcmds[command], 'r') as md5errorlist:
             reader = csv.reader(md5errorlist, delimiter='\t')
             for package, details in reader:
                 if package not in ignored_packages:
