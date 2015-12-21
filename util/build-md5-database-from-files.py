@@ -6,8 +6,9 @@ import os
 
 db = sqlite3.connect(':memory:')
 cur = db.cursor()
+release = '6.0'
 
-with open('timmy-virgintest/db/versions/6.0/versions.tsv','r') as file:
+with open('../db/versions/'+release+'/versions.tsv','r') as file:
     reader = csv.reader(file, delimiter='\t')
     cur.execute('''
         CREATE TABLE versions
@@ -27,8 +28,8 @@ with open('timmy-virgintest/db/versions/6.0/versions.tsv','r') as file:
     db.commit()
 
 
-for file in os.listdir('md5'):
-    with open('md5/'+file,'r') as f2:
+for file in os.listdir('../db/md5/'+release):
+    with open('../db/md5/'+release+'/'+file,'r') as f2:
         if file[-11:-8] == 'deb':
             match = cur.execute('''
                 SELECT * FROM versions
