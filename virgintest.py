@@ -148,8 +148,8 @@ def verify_md5_builtin_show_results(nodes, node):
                 if package not in ignored_packages:
                     print ('env '+str(node.cluster)
                         +', node '+str(node.node_id)
-                        +': '+package
-                        +' - '+details)
+                        +': '+str(package)
+                        +' - '+str(details))
  
 def verify_md5_with_db_show_results(nodes, node):
     ignored_packages = [ 'vim-tiny' ]
@@ -163,13 +163,14 @@ def verify_md5_with_db_show_results(nodes, node):
     if os.stat(node.mapcmds[command]).st_size > 0:
         with open(node.mapcmds[command], 'r') as md5errorlist:
             reader = csv.reader(md5errorlist, delimiter='\t')
-            for id, package, details in reader:
+            for id, package, version, details in reader:
                 if package not in ignored_packages:
                     print ('env '+str(node.cluster)
                         +', node '+str(node.node_id)
                         +', package_id '+str(id)
-                        +': '+package
-                        +' - '+details)
+                        +': '+str(package)
+                        +', version '+str(version)
+                        +' - '+str(details))
 
 
 

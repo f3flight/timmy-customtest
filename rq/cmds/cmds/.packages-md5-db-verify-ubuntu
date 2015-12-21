@@ -16,7 +16,6 @@ do
     if [ "$?" -ne 0 ]
     then
       echo "$result" | grep -v 'did NOT match' | sed "s!^!${id}\t${pkg}\t!"
-      echo
     fi
     popd &> /dev/null
   fi 
