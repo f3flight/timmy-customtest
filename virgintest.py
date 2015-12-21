@@ -132,7 +132,7 @@ def verify_versions(versions_db_cursor, nodes, node):
                     +' (installed version - '+str(p_version)+')')
                 continue
 
-def verify_builtin_md5(nodes, node):
+def verify_md5_builtin_show_results(nodes, node):
     ignored_packages = [ 'vim-tiny' ]
     command = '.packages-md5-verify-'+node.os_platform
     if command not in node.mapcmds:
@@ -151,6 +151,27 @@ def verify_builtin_md5(nodes, node):
                         +': '+package
                         +' - '+details)
  
+def verify_md5_with_db_show_results(nodes, node):
+    ignored_packages = [ 'vim-tiny' ]
+    command = '.packages-md5-db-verify-'+node.os_platform
+    if command not in node.mapcmds:
+        print('node '+str(node.node_id)+': versions data was not collected!')
+        return
+    if not os.path.exists(node.mapcmds[command]):
+        print('node-'+str(node.node_id)+': versions data output file is missing!')
+        return
+    if os.stat(node.mapcmds[command]).st_size > 0:
+        with open(node.mapcmds[command], 'r') as md5errorlist:
+            reader = csv.reader(md5errorlist, delimiter='\t')
+            for id, package, details in reader:
+                if package not in ignored_packages:
+                    print ('env '+str(node.cluster)
+                        +', node '+str(node.node_id)
+                        +', package_id '+str(id)
+                        +': '+package
+                        +' - '+details)
+
+
 
 def main(argv=None):
     n = nodes_init()
@@ -168,7 +189,12 @@ def main(argv=None):
     print('built-in md5 verification analysis...')
     for node in n.nodes.values():
         if node.status == 'ready':
-            verify_builtin_md5(n, node)
+            verify_md5_builtin_show_results(n, node)
+
+    print('database md5 verification analysis...')
+    for node in n.nodes.values():
+        if node.status == 'ready':
+            verify_md5_with_db_show_results(n, node)
 
     return 0
 
