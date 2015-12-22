@@ -2,5 +2,5 @@
 
 for pkg in $(rpm -qa --qf '%{NAME}\n')
 do
-  rpm --verify $pkg | grep -v ' /etc/' | grep -v ' /root/' | egrep '^..5' | while read line; do echo -e "${pkg}\t${line}"; done
+  nice -n 19 ionice -c 3 rpm --verify $pkg | grep -v ' /etc/' | grep -v ' /root/' | egrep '^..5' | while read line; do echo -e "${pkg}\t${line}"; done
 done

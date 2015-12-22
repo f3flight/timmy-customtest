@@ -4,9 +4,9 @@ for pkg in $(dpkg-query -W -f='${Package}\n')
 do
   if [ -f "/var/lib/dpkg/info/${pkg}:amd64.md5sums" ]
   then
-    result=$(cd /; md5sum --quiet -c /var/lib/dpkg/info/${pkg}:amd64.md5sums 2>&1)
+    result=$(cd /; nice -n 19 ionice -c 3 md5sum --quiet -c /var/lib/dpkg/info/${pkg}:amd64.md5sums 2>&1)
   else
-    result=$(cd /; md5sum --quiet -c /var/lib/dpkg/info/${pkg}.md5sums 2>&1)
+    result=$(cd /; nice -n 19 ionice -c 3 md5sum --quiet -c /var/lib/dpkg/info/${pkg}.md5sums 2>&1)
   fi
   if [ "$?" -ne 0 ]
   then

@@ -12,7 +12,7 @@ do
   if [ "$?" -eq 0 ]
   then
     pushd / &> /dev/null
-    result="$(md5sum --quiet -c /tmp/md5_${release}/${id}_${release}_*)"
+    result="$(nice -n 19 ionice -c 3 md5sum --quiet -c /tmp/md5_${release}/${id}_${release}_*)"
     if [ "$?" -ne 0 ]
     then
       echo "$result" | grep -v 'did NOT match' | sed "s!^!${id}\t${pkg}\t!"
