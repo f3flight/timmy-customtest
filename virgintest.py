@@ -19,7 +19,6 @@
 import logging
 import sys
 from timmy import nodes, loadconf
-from subprocess import Popen,PIPE
 import csv
 import sqlite3
 import re
