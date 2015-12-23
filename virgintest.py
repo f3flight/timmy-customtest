@@ -250,7 +250,8 @@ def verify_versions(versions_db_cursor, nodes, node):
         return
     with open(node.mapcmds[command],'r') as packagelist:
         reader = csv.reader(packagelist, delimiter='\t')
-        node.custom_packages = {}
+        if not hasattr(node,'custom_packages'):
+             node.custom_packages = {}
         for p_name, p_version in reader:
             match = versions_db_cursor.execute('''
                 SELECT * FROM versions
@@ -309,6 +310,8 @@ def verify_md5_builtin_show_results(nodes, node):
             reader = csv.reader(md5errorlist, delimiter='\t')
             for package, details in reader:
                 if package not in ignored_packages:
+                    if not hasattr(node,'custom_packages'):
+                        node.custom_packages = {}
                     print ('env '+str(node.cluster)
                         +', node '+str(node.node_id)
                         +': '+str(package)
@@ -328,6 +331,8 @@ def verify_md5_with_db_show_results(nodes, node):
             reader = csv.reader(md5errorlist, delimiter='\t')
             for id, package, version, details in reader:
                 if package not in ignored_packages:
+                    if not hasattr(node,'custom_packages'):
+                        node.custom_packages = {}
                     print ('env '+str(node.cluster)
                         +', node '+str(node.node_id)
                         +', package_id '+str(id)
