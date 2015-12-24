@@ -3,5 +3,12 @@
 rpm -qa --qf '%{NAME}\t%{VERSION}%{RELEASE}\n' | while read l
 do
   pkg=$(echo "$l" | cut -f1)
-  nice -n 19 ionice -c 3 rpm --verify $pkg | grep -v ' /etc/' | grep -v ' /root/' | egrep '^..5' | while read line; do echo -e "${l}\t${line}"; done
+  nice -n 19 ionice -c 3 rpm --verify $pkg | grep -v ' /etc/' | grep -v ' /root/' | egrep '^..5' | while read line
+  do
+    #exclude .pyc files
+    if [ "$(echo $line | grep -c -v '.pyc$')" -eq 1 ]
+    then
+      echo -e "${l}\t${line}"
+    fi
+  done
 done
