@@ -99,7 +99,9 @@ def deb_vercmp(a, b):
 
         ia = 0
         ib = 0 
+        iter = -1
         while ia < len(a) or ib < len(b):
+            iter += 1
             diff = 0
             # workaround for end of string, add 0 to compare lower then everything except '~'
             # it is impossible that both ia and ib get over string bounds, so no endless loop possibility
@@ -121,8 +123,8 @@ def deb_vercmp(a, b):
             while ia < len(a) and a[ia].isdigit() and ib < len(b) and b[ib].isdigit():
                 if not diff:
                     diff = int(a[ia]) - int(b[ib])
-                    ia += 1
-                    ib += 1
+                ia += 1
+                ib += 1
             if ia < len(a) and a[ia].isdigit():
                 return 1
             if ib < len(b) and b[ib].isdigit():
@@ -367,7 +369,7 @@ def max_versions_dict(versions_db):
     return max_version
 
 def mu_safety_check(node, mvd):
-    if node.custom_packages():
+    if hasattr(node, 'custom_packages'):
         for p_name, p_version in custom_packages:
             if node.release in mvd:
                 if node.os in mvd[node.release]:
@@ -403,7 +405,7 @@ def mu_safety_check(node, mvd):
 
 def main(argv=None):
     n = nodes_init()
-    n.launch_ssh(n.conf['out-dir'])
+    #n.launch_ssh(n.conf['out-dir'])
     
     versions_db = sqlite3.connect(':memory:')
     load_versions_database(versions_db)
@@ -427,7 +429,7 @@ def main(argv=None):
     print('MU safety analysis')
     mvd = max_versions_dict(versions_db)
     for node in n.nodes.values():
-        if nodes.status == 'ready':
+        if node.status == 'ready':
             mu_safety_check(node, mvd)
     return 0
 
