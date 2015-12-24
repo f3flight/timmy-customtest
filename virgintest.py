@@ -103,9 +103,9 @@ def deb_vercmp(a, b):
             diff = 0
             # workaround for end of string, add 0 to compare lower then everything except '~'
             # it is impossible that both ia and ib get over string bounds, so no endless loop possibility
-            if ia = len(a):
+            if ia == len(a):
                 a += '0'
-            if ib = len(b):
+            if ib == len(b):
                 b += '0'
             while (ia < len(a) and not a[ia].isdigit()) or ( ib < len(b) and not b[ib].isdigit()):
                 if order(a[ia]) > order(b[ib]):
@@ -116,7 +116,7 @@ def deb_vercmp(a, b):
                 i_b += 1
             while ia < len(a) and a[i_a] == '0':
                 i_a += 1
-            while ib < len(b) b[i_b] == '0':
+            while ib < len(b) and b[i_b] == '0':
                 i_b += 1
             while ia < len(a) and a[ia].isdigit() and ib < len(b) and b[ib].isdigit():
                 if not diff:
@@ -285,7 +285,7 @@ def verify_versions(versions_db_cursor, nodes, node):
                         +', node '+str(node.node_id)
                         +': package version not in db - '+p_name
                         +', version '+str(p_version))
-                   continue
+                    continue
                 ## Package with a different version might still be found 
                 ## in a different release but such details are not interesting
                 ## so just fail with a message.
@@ -344,7 +344,7 @@ def verify_md5_with_db_show_results(nodes, node):
                         +', version '+str(version)
                         +' - '+str(details))
 
-def max_versions_dict(versions_db)
+def max_versions_dict(versions_db):
     versions_db_cursor = versions_db.cursor()
     data = versions_db_cursor.execute('''
         SELECT release, os, package_name, package_version
@@ -359,21 +359,21 @@ def max_versions_dict(versions_db)
         if el(2) not in max_version[el(0)][el(1)]:
             max_version[el(0)][el(1)][el(2)] = el(3)
         else:
-            if el(1) = 'centos':
+            if el(1) == 'centos':
                 if rpm_vercmp(el(3), max_version[el(0)][el(1)][el(2)]) > 0:
                     max_version[el(0)][el(1)][el(2)] = el(3)
-            if el(1) = 'ubuntu':
+            if el(1) == 'ubuntu':
                 if deb_vercmp(el(3), max_version[el(0)][el(1)][el(2)]) > 0:
                     max_version[el(0)][el(1)][el(2)] = el(3)
     return max_version
 
 def mu_safety_check(node, mvd):
     if node.custom_packages():
-        for p_name, p_version in custom_packages
+        for p_name, p_version in custom_packages:
             if node.release in mvd:
                 if node.os in mvd[node.release]:
                     if p_name in mvd[node.release][node.os]:
-                        if node.os = 'centos':
+                        if node.os == 'centos':
                             if rpm_vercmp(mvd[node.release][node.os][p_name],p_version) > 0:
                                 print('env '+str(node.cluster)
                                     +', node '+str(node.node_id)
@@ -385,9 +385,9 @@ def mu_safety_check(node, mvd):
                                     +', node '+str(node.node_id)
                                     +': custom package '+ str(p_name)
                                     +' version '+str(p_version)
-                                    +' will prevent (MU or release) version '+str(mvd[node.release][node.os][p_name]))
+                                    +' will prevent (MU or release) version '+str(mvd[node.release][node.os][p_name])
                                     +'from being installed')
-                        elif node.os = 'ubuntu':
+                        elif node.os == 'ubuntu':
                             if deb_vercmp(mvd[node.release][node.os][p_name],p_version) > 0:
                                 print('env '+str(node.cluster)
                                     +', node '+str(node.node_id)
@@ -399,7 +399,7 @@ def mu_safety_check(node, mvd):
                                     +', node '+str(node.node_id)
                                     +': custom package '+ str(p_name)
                                     +' version '+str(p_version)
-                                    +' will prevent (MU or release) version '+str(mvd[node.release][node.os][p_name]))
+                                    +' will prevent (MU or release) version '+str(mvd[node.release][node.os][p_name])
                                     +'from being installed')
 
 def main(argv=None):
@@ -425,7 +425,7 @@ def main(argv=None):
         if node.status == 'ready':
             verify_md5_with_db_show_results(n, node)
 
-    print('MU safety analysis'):
+    print('MU safety analysis')
     mvd = max_versions_dict(versions_db)
     for node in n.nodes.values():
         if nodes.status == 'ready':
