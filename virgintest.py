@@ -285,14 +285,18 @@ def verify_versions(versions_db_cursor, nodes, node):
                         +', node '+str(node.node_id)
                         +': package version not in db - '+p_name
                         +', version '+str(p_version))
-                    continue
-                # package with a different version might still be found 
-                # in a different release but such details are not interesting
-                # so just fail
-                print('env '+str(node.cluster)
-                    +', node '+str(node.node_id)
-                    +': package not in db - '+p_name
-                    +' (installed version - '+str(p_version)+')')
+                   continue
+                ## Package with a different version might still be found 
+                ## in a different release but such details are not interesting
+                ## so just fail with a message.
+                ## Commenting out this section for now
+                ## since db for the most part does not contain
+                ## upstream packages and this will result in
+                ## false positives
+                # print('env '+str(node.cluster)
+                #     +', node '+str(node.node_id)
+                #     +': package not in db - '+p_name
+                #     +' (installed version - '+str(p_version)+')')
                 continue
         return custom_packages
 
