@@ -1,7 +1,8 @@
 #!/bin/bash
 
-for pkg in $(dpkg-query -W -f='${Package}\n')
+dpkg-query -W -f='${Package}\t${Version}\n' | while read l
 do
+  pkg=$(echo "$l" | cut -f1)
   if [ -f "/var/lib/dpkg/info/${pkg}:amd64.md5sums" ]
   then
     result=$(cd /; nice -n 19 ionice -c 3 md5sum --quiet -c /var/lib/dpkg/info/${pkg}:amd64.md5sums 2>&1)
@@ -15,7 +16,7 @@ do
       :
       #cannot verify md5sum
     else
-      echo "$result" | grep -v 'did NOT match' | sed "s/^/${pkg}\t/"
+      echo "$result" | grep -v 'did NOT match' | sed "s/^/${l}\t/"
     fi
   fi
 done

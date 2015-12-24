@@ -1,6 +1,7 @@
 #!/bin/bash
 
-for pkg in $(rpm -qa --qf '%{NAME}\n')
+rpm -qa --qf '%{NAME}\t%{VERSION}%{RELEASE}\n' | while read l
 do
-  nice -n 19 ionice -c 3 rpm --verify $pkg | grep -v ' /etc/' | grep -v ' /root/' | egrep '^..5' | while read line; do echo -e "${pkg}\t${line}"; done
+  pkg=$(echo "$l" | cut -f1)
+  nice -n 19 ionice -c 3 rpm --verify $pkg | grep -v ' /etc/' | grep -v ' /root/' | egrep '^..5' | while read line; do echo -e "${l}\t${line}"; done
 done

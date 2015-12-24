@@ -305,44 +305,47 @@ def verify_md5_builtin_show_results(nodes, node):
     ignored_packages = [ 'vim-tiny' ]
     command = '.packages-md5-verify-'+node.os_platform
     if command not in node.mapcmds:
-        print('node '+str(node.node_id)+': versions data was not collected!')
+        print('node '+str(node.node_id)+': builtin md5 data was not collected!')
         return
     if not os.path.exists(node.mapcmds[command]):
-        print('node-'+str(node.node_id)+': versions data output file is missing!')
+        print('node-'+str(node.node_id)+': builtin md5 data output file is missing!')
         return
     if os.stat(node.mapcmds[command]).st_size > 0:
         with open(node.mapcmds[command], 'r') as md5errorlist:
             reader = csv.reader(md5errorlist, delimiter='\t')
-            for package, details in reader:
-                if package not in ignored_packages:
+            for p_name, p_version, details in reader:
+                if p_name not in ignored_packages:
                     if not hasattr(node,'custom_packages'):
                         node.custom_packages = {}
+                    node.custom_packages[p_name] = p_version
                     print ('env '+str(node.cluster)
                         +', node '+str(node.node_id)
-                        +': '+str(package)
+                        +': '+str(p_name)
+                        +', version '+str(p_version)
                         +' - '+str(details))
  
 def verify_md5_with_db_show_results(nodes, node):
     ignored_packages = [ 'vim-tiny' ]
     command = '.packages-md5-db-verify-'+node.os_platform
     if command not in node.mapcmds:
-        print('node '+str(node.node_id)+': versions data was not collected!')
+        print('node '+str(node.node_id)+': db md5 data was not collected!')
         return
     if not os.path.exists(node.mapcmds[command]):
-        print('node-'+str(node.node_id)+': versions data output file is missing!')
+        print('node-'+str(node.node_id)+': db md5 data output file is missing!')
         return
     if os.stat(node.mapcmds[command]).st_size > 0:
         with open(node.mapcmds[command], 'r') as md5errorlist:
             reader = csv.reader(md5errorlist, delimiter='\t')
-            for id, package, version, details in reader:
-                if package not in ignored_packages:
+            for id, p_name, p_version, details in reader:
+                if p_name not in ignored_packages:
                     if not hasattr(node,'custom_packages'):
                         node.custom_packages = {}
+                    node.custom_packages[p_name] = p_version
                     print ('env '+str(node.cluster)
                         +', node '+str(node.node_id)
                         +', package_id '+str(id)
-                        +': '+str(package)
-                        +', version '+str(version)
+                        +': '+str(p_name)
+                        +', version '+str(p_version)
                         +' - '+str(details))
 
 def max_versions_dict(versions_db):
@@ -370,37 +373,37 @@ def max_versions_dict(versions_db):
 
 def mu_safety_check(node, mvd):
     if hasattr(node, 'custom_packages'):
-        for p_name, p_version in node.custom_packages:
+        for p_name, p_version in node.custom_packages.items():
             if node.release in mvd:
-                if node.os in mvd[node.release]:
-                    if p_name in mvd[node.release][node.os]:
-                        if node.os == 'centos':
-                            if rpm_vercmp(mvd[node.release][node.os][p_name],p_version) > 0:
+                if node.os_platform in mvd[node.release]:
+                    if p_name in mvd[node.release][node.os_platform]:
+                        if node.os_platform == 'centos':
+                            if rpm_vercmp(mvd[node.release][node.os_platform][p_name],p_version) > 0:
                                 print('env '+str(node.cluster)
                                     +', node '+str(node.node_id)
                                     +': custom package '+ str(p_name)
                                     +' version '+str(p_version)
-                                    +' will be overwritten by MU version '+str(mvd[node.release][node.os][p_name]))
+                                    +' will be overwritten by MU version '+str(mvd[node.release][node.os_platform][p_name]))
                             else:
                                 print('env '+str(node.cluster)
                                     +', node '+str(node.node_id)
                                     +': custom package '+ str(p_name)
                                     +' version '+str(p_version)
-                                    +' will prevent (MU or release) version '+str(mvd[node.release][node.os][p_name])
+                                    +' will prevent (MU or release) version '+str(mvd[node.release][node.os_platform][p_name])
                                     +'from being installed')
-                        elif node.os == 'ubuntu':
-                            if deb_vercmp(mvd[node.release][node.os][p_name],p_version) > 0:
+                        elif node.os_platform == 'ubuntu':
+                            if deb_vercmp(mvd[node.release][node.os_platform][p_name],p_version) > 0:
                                 print('env '+str(node.cluster)
                                     +', node '+str(node.node_id)
                                     +': custom package '+ str(p_name)
                                     +' version '+str(p_version)
-                                    +' will be overwritten by MU version '+str(mvd[node.release][node.os][p_name]))
+                                    +' will be overwritten by MU version '+str(mvd[node.release][node.os_platform][p_name]))
                             else:
                                 print('env '+str(node.cluster)
                                     +', node '+str(node.node_id)
                                     +': custom package '+ str(p_name)
                                     +' version '+str(p_version)
-                                    +' will prevent (MU or release) version '+str(mvd[node.release][node.os][p_name])
+                                    +' will prevent (MU or release) version '+str(mvd[node.release][node.os_platform][p_name])
                                     +'from being installed')
 
 def main(argv=None):
@@ -426,7 +429,7 @@ def main(argv=None):
         if node.status == 'ready':
             verify_md5_with_db_show_results(n, node)
 
-    print('MU safety analysis')
+    print('MU safety analysis...')
     mvd = max_versions_dict(versions_db)
     for node in n.nodes.values():
         if node.status == 'ready':
