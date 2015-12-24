@@ -405,7 +405,7 @@ def mu_safety_check(node, mvd):
 
 def main(argv=None):
     n = nodes_init()
-    #n.launch_ssh(n.conf['out-dir'])
+    n.launch_ssh(n.conf['out-dir'])
     
     versions_db = sqlite3.connect(':memory:')
     load_versions_database(versions_db)
