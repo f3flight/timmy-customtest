@@ -112,12 +112,12 @@ def deb_vercmp(a, b):
                     return 1
                 if order(a[ia]) < order(b[ib]):
                     return -1
-                i_a += 1
-                i_b += 1
-            while ia < len(a) and a[i_a] == '0':
-                i_a += 1
-            while ib < len(b) and b[i_b] == '0':
-                i_b += 1
+                ia += 1
+                ib += 1
+            while ia < len(a) and a[ia] == '0':
+                ia += 1
+            while ib < len(b) and b[ib] == '0':
+                ib += 1
             while ia < len(a) and a[ia].isdigit() and ib < len(b) and b[ib].isdigit():
                 if not diff:
                     diff = int(a[ia]) - int(b[ib])
@@ -298,7 +298,6 @@ def verify_versions(versions_db_cursor, nodes, node):
                 #     +': package not in db - '+p_name
                 #     +' (installed version - '+str(p_version)+')')
                 continue
-        return custom_packages
 
 def verify_md5_builtin_show_results(nodes, node):
     ignored_packages = [ 'vim-tiny' ]
@@ -352,19 +351,19 @@ def max_versions_dict(versions_db):
         ''').fetchall()
     max_version = {}
     for el in data:
-        if el(0) not in max_version:
-            max_version[el(0)] = {}
-        if el(1) not in max_version[el(0)]:
-            max_version[el(0)][el(1)] = {}
-        if el(2) not in max_version[el(0)][el(1)]:
-            max_version[el(0)][el(1)][el(2)] = el(3)
+        if el[0] not in max_version:
+            max_version[el[0]] = {}
+        if el[1] not in max_version[el[0]]:
+            max_version[el[0]][el[1]] = {}
+        if el[2] not in max_version[el[0]][el[1]]:
+            max_version[el[0]][el[1]][el[2]] = el[3]
         else:
-            if el(1) == 'centos':
-                if rpm_vercmp(el(3), max_version[el(0)][el(1)][el(2)]) > 0:
-                    max_version[el(0)][el(1)][el(2)] = el(3)
-            if el(1) == 'ubuntu':
-                if deb_vercmp(el(3), max_version[el(0)][el(1)][el(2)]) > 0:
-                    max_version[el(0)][el(1)][el(2)] = el(3)
+            if el[1] == 'centos':
+                if rpm_vercmp(el[3], max_version[el[0]][el[1]][el[2]]) > 0:
+                    max_version[el[0]][el[1]][el[2]] = el[3]
+            if el[1] == 'ubuntu':
+                if deb_vercmp(el[3], max_version[el[0]][el[1]][el[2]]) > 0:
+                    max_version[el[0]][el[1]][el[2]] = el[3]
     return max_version
 
 def mu_safety_check(node, mvd):
