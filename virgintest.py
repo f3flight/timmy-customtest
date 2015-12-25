@@ -416,24 +416,31 @@ def main(argv=None):
     
     print('versions verification analysis...')
     for node in n.nodes.values():
-        if node.status == 'ready':
+        if node.status == 'ready' and node.online == True:
             verify_versions(versions_db_cursor, n, node)
 
     print('built-in md5 verification analysis...')
     for node in n.nodes.values():
-        if node.status == 'ready':
+        if node.status == 'ready' and node.online == True:
             verify_md5_builtin_show_results(n, node)
 
     print('database md5 verification analysis...')
     for node in n.nodes.values():
-        if node.status == 'ready':
+        if node.status == 'ready' and node.online == True:
             verify_md5_with_db_show_results(n, node)
 
     print('MU safety analysis...')
     mvd = max_versions_dict(versions_db)
     for node in n.nodes.values():
-        if node.status == 'ready':
+        if node.status == 'ready' and node.online == True:
             mu_safety_check(node, mvd)
+
+    print('possible update ')
+    mvd = max_versions_dict(versions_db)
+    for node in n.nodes.values():
+        if node.status == 'ready' and node.online == True:
+            mu_safety_check(node, mvd)
+
     return 0
 
 if __name__ == '__main__':
