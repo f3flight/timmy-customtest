@@ -262,20 +262,6 @@ def verify_versions(versions_db_cursor, nodes, node):
                     AND package_name = ?
                     AND package_version = ?''', (node.release, node.os_platform, p_name, p_version)).fetchall()
             if not match:
-                node.custom_packages[p_name] = p_version
-                # try all releases
-                match = versions_db_cursor.execute('''
-                    SELECT * FROM versions
-                    WHERE os = ?
-                        AND package_name = ?
-                        AND package_version = ?''', (node.os_platform, p_name, p_version)).fetchall()
-                if match:
-                    print('env '+str(node.cluster)
-                        +', node '+str(node.node_id)
-                        +': package from a different release - '+p_name
-                        +', version '+str(p_version)
-                        +', found in release '+match[0][2])
-                    continue
                 # try all versions for current release
                 match = versions_db_cursor.execute('''
                 SELECT * FROM versions
@@ -283,11 +269,25 @@ def verify_versions(versions_db_cursor, nodes, node):
                     AND os = ?
                     AND package_name = ?''', (node.release, node.os_platform, p_name)).fetchall()
                 if match:
+                    node.custom_packages[p_name] = p_version
                     print('env '+str(node.cluster)
                         +', node '+str(node.node_id)
                         +': package version not in db - '+p_name
                         +', version '+str(p_version))
                     continue
+                ## try all releases - disabled for now because of lack of upstream data in db for newer releases
+                # match = versions_db_cursor.execute('''
+                #     SELECT * FROM versions
+                #     WHERE os = ?
+                #         AND package_name = ?
+                #         AND package_version = ?''', (node.os_platform, p_name, p_version)).fetchall()
+                # if match:
+                #     print('env '+str(node.cluster)
+                #         +', node '+str(node.node_id)
+                #         +': package from a different release - '+p_name
+                #         +', version '+str(p_version)
+                #         +', found in release '+match[0][2])
+                #     continue
                 ## Package with a different version might still be found 
                 ## in a different release but such details are not interesting
                 ## so just fail with a message.
