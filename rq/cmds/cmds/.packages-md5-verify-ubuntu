@@ -16,7 +16,7 @@ do
       :
       #cannot verify md5sum
     else
-      echo "$result" | grep -v 'did NOT match' | sed "s/^/${l}\t/"
+      echo "$result" | grep -v 'did NOT match\|md5sum: ' | sed "s/^/${l}\t/"
     fi
   fi
 done

@@ -274,7 +274,7 @@ def verify_versions(versions_db_cursor, nodes, node):
                         +', node '+str(node.node_id)
                         +': package from a different release - '+p_name
                         +', version '+str(p_version)
-                        +', found in release:'+match.fetchone()[2])
+                        +', found in release:'+match[0][2])
                     continue
                 # try all versions for current release
                 match = versions_db_cursor.execute('''
