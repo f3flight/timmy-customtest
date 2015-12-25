@@ -274,7 +274,7 @@ def verify_versions(versions_db_cursor, nodes, node):
                         +', node '+str(node.node_id)
                         +': package from a different release - '+p_name
                         +', version '+str(p_version)
-                        +', found in release:'+match[0][2])
+                        +', found in release '+match[0][2])
                     continue
                 # try all versions for current release
                 match = versions_db_cursor.execute('''
@@ -390,7 +390,7 @@ def mu_safety_check(node, mvd):
                                     +': custom package '+ str(p_name)
                                     +' version '+str(p_version)
                                     +' will prevent (MU or release) version '+str(mvd[node.release][node.os_platform][p_name])
-                                    +'from being installed')
+                                    +' from being installed')
                         elif node.os_platform == 'ubuntu':
                             if deb_vercmp(mvd[node.release][node.os_platform][p_name],p_version) > 0:
                                 print('env '+str(node.cluster)
@@ -404,7 +404,7 @@ def mu_safety_check(node, mvd):
                                     +': custom package '+ str(p_name)
                                     +' version '+str(p_version)
                                     +' will prevent (MU or release) version '+str(mvd[node.release][node.os_platform][p_name])
-                                    +'from being installed')
+                                    +' from being installed')
 
 def main(argv=None):
     n = nodes_init()
