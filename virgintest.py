@@ -504,7 +504,7 @@ def main(argv=None):
         print('OK')
     sleep(1)
 
-    sys.stdout.write('Database md5 verification analysis... ')
+    sys.stdout.write('[WIP] Database md5 verification analysis... ')
     output = False
     for node in n.nodes.values():
         if node.status == 'ready' and node.online == True:
