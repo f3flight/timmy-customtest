@@ -10,6 +10,11 @@ lastid=$(tail -n 1 $db | cut -f1)
 id=$lastid
 echo "$packagesdata" | while read l
 do
+  #skip source packages
+  if [ "$(echo "$l" | grep -c '\.src\.rpm$')" -eq 1 ]
+  then
+    continue
+  fi 
   fn=$(echo "$l" | cut -f5 | rev | cut -d/ -f1 | rev)
   n=$(echo "$l" | cut -f1)
   e=$(echo "$l" | cut -f2 | sed 's/$/:/' | grep -v '^0:$')
