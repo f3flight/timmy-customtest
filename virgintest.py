@@ -244,8 +244,9 @@ def verify_versions(versions_db_cursor, node, output=False):
         if not output:
             sys.stdout.write('\n')
         print('  env '+str(node.cluster)
-            +', node-'+str(node.node_id)
-            +' - sorry, the database does not have any data for Fuel release '
+            +', node '+str(node.node_id)
+            +'('+', '.join(node.roles)+')'
+            +': sorry, the database does not have any data for Fuel release '
             +str(node.release)
             +' for '+str(node.os_platform)+'!')
         return True
@@ -253,12 +254,18 @@ def verify_versions(versions_db_cursor, node, output=False):
     if command not in node.mapcmds:
         if not output:
             sys.stdout.write('\n')
-        print('  env '+str(node.cluster)+', node '+str(node.node_id)+': versions data was not collected!')
+        print('  env '+str(node.cluster)
+            +', node '+str(node.node_id)
+            +'('+', '.join(node.roles)+')'
+            +': versions data was not collected!')
         return True
     if not os.path.exists(node.mapcmds[command]):
         if not output:
             sys.stdout.write('\n')
-        print('  env '+str(node.cluster)+', node-'+str(node.node_id)+': versions data output file is missing!')
+        print('  env '+str(node.cluster)
+            +', node '+str(node.node_id)
+            +'('+', '.join(node.roles)+')'
+            +': versions data output file is missing!')
         return True
     with open(node.mapcmds[command],'r') as packagelist:
         reader = csv.reader(packagelist, delimiter='\t')
@@ -285,6 +292,7 @@ def verify_versions(versions_db_cursor, node, output=False):
                     node.custom_packages[p_name] = p_version
                     print('  env '+str(node.cluster)
                         +', node '+str(node.node_id)
+                        +'('+', '.join(node.roles)+')'
                         +': package version not in db - '+p_name
                         +', version '+str(p_version))
                     continue
@@ -297,6 +305,7 @@ def verify_versions(versions_db_cursor, node, output=False):
                 # if match:
                 #     print('  env '+str(node.cluster)
                 #         +', node '+str(node.node_id)
+                #         +'('+', '.join(node.roles)+')'
                 #         +': package from a different release - '+p_name
                 #         +', version '+str(p_version)
                 #         +', found in release '+match[0][2])
@@ -310,6 +319,7 @@ def verify_versions(versions_db_cursor, node, output=False):
                 ## false positives
                 # print('  env '+str(node.cluster)
                 #     +', node '+str(node.node_id)
+                #     +'('+', '.join(node.roles)+')'
                 #     +': package not in db - '+p_name
                 #     +' (installed version - '+str(p_version)+')')
                 continue
@@ -321,12 +331,18 @@ def verify_md5_builtin_show_results(node, output=False):
     if command not in node.mapcmds:
         if not output:
             sys.stdout.write('\n')
-        print('  env '+str(node.cluster)+', node '+str(node.node_id)+': builtin md5 data was not collected!')
+        print('  env '+str(node.cluster)
+            +', node '+str(node.node_id)
+            +'('+', '.join(node.roles)+')'
+            +': builtin md5 data was not collected!')
         return True
     if not os.path.exists(node.mapcmds[command]):
         if not output:
             sys.stdout.write('\n')
-        print('  env '+str(node.cluster)+', node-'+str(node.node_id)+': builtin md5 data output file is missing!')
+        print('  env '+str(node.cluster)
+            +', node-'+str(node.node_id)
+            +'('+', '.join(node.roles)+')'
+            +': builtin md5 data output file is missing!')
         return True
     if os.stat(node.mapcmds[command]).st_size > 0:
         with open(node.mapcmds[command], 'r') as md5errorlist:
@@ -341,6 +357,7 @@ def verify_md5_builtin_show_results(node, output=False):
                     node.custom_packages[p_name] = p_version
                     print ('  env '+str(node.cluster)
                         +', node '+str(node.node_id)
+                        +'('+', '.join(node.roles)+')'
                         +': '+str(p_name)
                         +', version '+str(p_version)
                         +' - '+str(details).strip())
@@ -352,12 +369,18 @@ def verify_md5_with_db_show_results(node, output=False):
     if command not in node.mapcmds:
         if not output:
             sys.stdout.write('\n')
-        print('  env '+str(node.cluster)+', node '+str(node.node_id)+': db md5 data was not collected!')
+        print('  env '+str(node.cluster)
+            +', node '+str(node.node_id)
+            +'('+', '.join(node.roles)+')'
+            +': db md5 data was not collected!')
         return True
     if not os.path.exists(node.mapcmds[command]):
         if not output:
             sys.stdout.write('\n')
-        print('  env '+str(node.cluster)+', node-'+str(node.node_id)+': db md5 data output file is missing!')
+        print('  env '+str(node.cluster)
+            +', node-'+str(node.node_id)
+            +'('+', '.join(node.roles)+')'
+            +': db md5 data output file is missing!')
         return True
     if os.stat(node.mapcmds[command]).st_size > 0:
         with open(node.mapcmds[command], 'r') as md5errorlist:
@@ -372,6 +395,7 @@ def verify_md5_with_db_show_results(node, output=False):
                     node.custom_packages[p_name] = p_version
                     print ('  env '+str(node.cluster)
                         +', node '+str(node.node_id)
+                        +'('+', '.join(node.roles)+')'
                         +', package_id '+str(id)
                         +': '+str(p_name)
                         +', version '+str(p_version)
@@ -418,12 +442,14 @@ def mu_safety_check(node, mvd, output=False):
                         if r > 0:
                             print('  env '+str(node.cluster)
                                 +', node '+str(node.node_id)
+                                +'('+', '.join(node.roles)+')'
                                 +': custom package '+ str(p_name)
                                 +' version '+str(p_version)
                                 +' will be overwritten by MU version '+str(mvd[node.release][node.os_platform][p_name]))
                         else:
                             print('  env '+str(node.cluster)
                                 +', node '+str(node.node_id)
+                                +'('+', '.join(node.roles)+')'
                                 +': custom package '+ str(p_name)
                                 +' version '+str(p_version)
                                 +' will prevent (MU or release) version '+str(mvd[node.release][node.os_platform][p_name])
@@ -438,20 +464,27 @@ def update_candidates(versions_db_cursor, node, mvd, output=False):
         if not output:
             sys.stdout.write('\n')
         print('  env '+str(node.cluster)
-            +', node-'+str(node.node_id)
-            +' - sorry, the database does not have any data for Fuel release '+str(node.release)
+            +', node '+str(node.node_id)
+            +'('+', '.join(node.roles)+')'
+            +': sorry, the database does not have any data for Fuel release '+str(node.release)
             +' for '+str(node.os_platform)+'!')
         return True
     command = '.packagelist-'+node.os_platform
     if command not in node.mapcmds:
         if not output:
             sys.stdout.write('\n')
-        print('  env '+str(node.cluster)+', node '+str(node.node_id)+': versions data was not collected!')
+        print('  env '+str(node.cluster)
+            +', node '+str(node.node_id)
+            +'('+', '.join(node.roles)+')'
+            +': versions data was not collected!')
         return
     if not os.path.exists(node.mapcmds[command]):
         if not output:
             sys.stdout.write('\n')
-        print('  env '+str(node.cluster)+', node-'+str(node.node_id)+': versions data output file is missing!')
+        print('  env '+str(node.cluster)
+            +', node-'+str(node.node_id)
+            +'('+', '.join(node.roles)+')'
+            +': versions data output file is missing!')
         return
     with open(node.mapcmds[command],'r') as packagelist:
         reader = csv.reader(packagelist, delimiter='\t')
@@ -470,6 +503,7 @@ def update_candidates(versions_db_cursor, node, mvd, output=False):
                         p_state = 'custom'
                     print('  env '+str(node.cluster)
                         +', node '+str(node.node_id)
+                        +'('+', '.join(node.roles)+')'
                         +': '+p_state+' package '+ str(p_name)
                         +' version '+str(p_version)
                         +' can be updated to version '+str(mvd[node.release][node.os_platform][p_name]))
