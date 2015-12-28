@@ -12,7 +12,7 @@ lastid=$(tail -n 1 $db | cut -f1)
 id=$lastid
 echo "$packagesdata" | while read l
 do
-  fn=$(echo "$l" | cut -f5 | cut -c10-)
+  fn=$(echo "$l" | cut -f5 | rev | cut -d/ -f1 | rev)
   n=$(echo "$l" | cut -f1)
   e=$(echo "$l" | cut -f2 | sed 's/$/:/' | grep -v '^0:$')
   v=$(echo "$l" | cut -f3)
