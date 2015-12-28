@@ -153,9 +153,8 @@ def deb_vercmp(a, b):
                 return b_newer
         elif int(a_epoch.groups()[0]) > 0:
             return a_newer
-        else:
-            b = b[2:]
         a = a[2:]
+        b = b[2:]
     elif b_epoch:
         if int(b_epoch.groups()[0]) > 0:
             return b_newer
