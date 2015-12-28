@@ -426,7 +426,6 @@ def max_versions_dict(versions_db):
     return max_version
 
 def mu_safety_check(node, mvd, output=False):
-    output = False
     if hasattr(node, 'custom_packages'):
         for p_name, p_version in node.custom_packages.items():
             if node.release in mvd:
@@ -559,6 +558,7 @@ def main(argv=None):
     sleep(1)
 
     sys.stdout.write('Below is the list of packages which may be updated... ')
+    output = False
     for node in n.nodes.values():
         if node.status == 'ready' and node.online == True:
             if update_candidates(versions_db_cursor, node, mvd, output) and not output:
