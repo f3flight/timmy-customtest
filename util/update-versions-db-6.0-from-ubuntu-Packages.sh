@@ -2,7 +2,9 @@
 
 db='../db/versions/6.0/versions.tsv'
 
-packagesdata="$(wget -O Packages http://mirror.fuel-infra.org/fwm/6.0/ubuntu/dists/precise/main/binary-amd64/Packages)"
+#this is incorrect, because online repo is different from repo in the 6.0 GA ISO!
+#need to use Packages file from the ISO only
+#packagesdata="$(wget -O Packages http://mirror.fuel-infra.org/fwm/6.0/ubuntu/dists/precise/main/binary-amd64/Packages)"
 packagesdata="$(cat Packages)"
 
 lastid=$(tail -n 1 $db | cut -f1)
