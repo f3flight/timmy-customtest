@@ -504,8 +504,8 @@ def update_candidates(versions_db_cursor, node, mvd, output=False):
                         +', node '+str(node.node_id)
                         +'('+', '.join(node.roles)+')'
                         +': '+p_state+' package '+ str(p_name)
-                        +' version '+str(p_version)
-                        +' can be updated to version '+str(mvd[node.release][node.os_platform][p_name]))
+                        +'\t'+str(p_version)
+                        +'\t-->\t'+str(mvd[node.release][node.os_platform][p_name]))
     return output
  
 def main(argv=None):
