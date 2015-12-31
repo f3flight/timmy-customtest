@@ -58,7 +58,7 @@ def rpm_vercmp(a, b):
     a_list = re.findall('[a-zA-Z]+|[0-9]+', a)
     b_list = re.findall('[a-zA-Z]+|[0-9]+', b)
     for index, value in enumerate(a_list):
-        if index > len(b_list):
+        if index >= len(b_list):
             return a_newer
         else:
             if value.isdigit():
