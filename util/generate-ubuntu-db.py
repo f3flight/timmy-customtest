@@ -4,6 +4,7 @@ import sys
 import argparse
 import urllib2
 import sqlite3
+import os
 
 releases = ['5.1',
             '5.1.1',
@@ -33,13 +34,106 @@ def main(argv=None):
         try:
             open(args.output, 'w')
         except Exception:
-            return 'Cannot write to the output file.'
+            return 'Cannot write to the output file '+args.output
 
-    # declaring variables
-    release_source = {}
-    updates_source = {}
-    in_database = None
-    out_database = None
+    def fetch(sources):
+        fetched = {}
+        for source in sources:
+            try:
+                request = urllib2.urlopen(source)
+            except Exception:
+                sys.stderr.write('Error: Could not access '
+                                 +str(source)+'\n')
+                return 1
+            fetched[source] = request.read()
+        return fetched
+
+    def dbgen(sources, mu=0, job_id=-1):
+        db = sqlite3.connect(args.output)
+        dbc = db.cursor()
+        if os.stat(args.output).st_size == 0:
+            #empty file -> new db, creating tables
+            dbc.execute('''
+                CREATE TABLE sources
+                (
+                    id INTEGER PRIMARY KEY,
+                    source TEXT
+                )''')
+            dbc.execute('''
+                CREATE TABLE versions
+                (
+                    id INTEGER PRIMARY KEY,
+                    source_id INTEGER,
+                    job_id INTEGER,
+                    release TEXT,
+                    mu TEXT,
+                    os TEXT,
+                    package_name TEXT,
+                    package_version TEXT,
+                    package_filename TEXT
+                )''')
+        for source, data in sources.items():
+            r = dbc.execute('''
+                SELECT rowid FROM sources WHERE source = ?
+                ''', (source,)).fetchall()
+            if len(r) == 0:
+                dbc.execute('''
+                    INSERT INTO sources (source) VALUES (?)
+                    ''', (source,))
+                r = dbc.execute('''
+                        SELECT rowid FROM sources
+                        WHERE source = ? 
+                    ''', (source,)).fetchall()
+            source_id = r[0][0]
+            packagedata = data.split('\n\n')
+            for pd in packagedata:
+                if len(pd) == 0:
+                    continue
+                package = {}
+                lines = pd.split('\n')
+                for line in lines:
+                    unpacked = line.split(': ', 1)
+                    if len(unpacked) > 1:
+                        package[unpacked[0]] = unpacked[1]
+                package['Filename'] = package['Filename'].split('/')[-1]
+                r = dbc.execute('''
+                    SELECT rowid FROM versions
+                    WHERE release = ?
+                          AND mu = ?
+                          AND os = 'ubuntu'
+                          AND package_name = ?
+                          AND package_version = ?
+                          AND package_filename = ?
+                    ''', (args.release,
+                          mu,
+                          package['Package'],
+                          package['Version'],
+                          package['Filename']))
+                if len(r.fetchall()) > 0:
+                    print('Duplicate package '+str(package)+', skipping...')
+                else:
+                    dbc.execute('''
+                        INSERT INTO versions
+                        (
+                            source_id,
+                            job_id,
+                            release,
+                            mu,
+                            os,
+                            package_name,
+                            package_version,
+                            package_filename
+                        ) VALUES (?,?,?,?,?,?,?,?)
+                        ''', (source_id,
+                              job_id,
+                              args.release,
+                              mu,
+                              'ubuntu',
+                              package['Package'],
+                              package['Version'],
+                              package['Filename']))
+        db.commit()
+
     # validating arguments
     if not argv:
         sys.stderr.write('Error: no parameters specified.\n')
@@ -81,102 +175,16 @@ def main(argv=None):
     if not args.updates_source:
         #GA db generation
         print('GA -> db generation...')
-        for source in args.release_source:
-            try:
-                request = urllib2.urlopen(source)
-            except Exception:
-                sys.stderr.write('Error: Could not access '
-                                 +str(source)+'\n')
-                return 1
-            release_source[source] = request.read()
-        db = sqlite3.connect(args.output)
-        dbc = db.cursor()
-        dbc.execute('''
-            CREATE TABLE sources
-            (
-                id INTEGER PRIMARY KEY,
-                source TEXT
-            )''')
-        dbc.execute('''
-            CREATE TABLE versions
-            (
-                id INTEGER PRIMARY KEY,
-                source_id INTEGER,
-                job_id INTEGER,
-                release TEXT,
-                mu TEXT,
-                os TEXT,
-                package_name TEXT,
-                package_version TEXT,
-                package_filename TEXT
-            )''')
-        for source, data in release_source.items():
-            dbc.execute('''
-                INSERT INTO sources (source) VALUES (?)
-                ''', (source,))
-            r = dbc.execute('''
-                SELECT rowid FROM sources
-                WHERE source = ? 
-                ''', (source,))
-            source_id = r.fetchone()[0]
-            packagedata = data.split('\n\n')
-            for pd in packagedata:
-                if len(pd) == 0:
-                    continue
-                package = {}
-                lines = pd.split('\n')
-                for line in lines:
-                    unpacked = line.split(': ', 1)
-                    if len(unpacked) > 1:
-                        package[unpacked[0]] = unpacked[1]
-                package['Filename'] = package['Filename'].split('/')[-1]
-                r = dbc.execute('''
-                    SELECT rowid FROM versions
-                    WHERE release = ?
-                          AND mu = 0
-                          AND os = 'ubuntu'
-                          AND package_name = ?
-                          AND package_version = ?
-                          AND package_filename = ?
-                    ''', (args.release,
-                          package['Package'],
-                          package['Version'],
-                          package['Filename']))
-                if len(r.fetchall()) > 0:
-                    print('Duplicate package '+str(package)+', skipping...')
-                else:
-                    dbc.execute('''
-                        INSERT INTO versions
-                        (
-                            source_id,
-                            job_id,
-                            release,
-                            mu,
-                            os,
-                            package_name,
-                            package_version,
-                            package_filename
-                        ) VALUES (?,?,?,?,?,?,?,?)
-                        ''', (source_id,
-                              -1,
-                              args.release,
-                              0,
-                              'ubuntu',
-                              package['Package'],
-                              package['Version'],
-                              package['Filename']))
-        db.commit()
+        release_source = fetch(args.release_source)
+        dbgen(release_source)
     else:
         #MU db update
         print('MU -> db update...')
-        try:
-            request = urllib2.urlopen(args.database)
-        except Exception:
-            sys.stderr.write('Error: Could not access the database\n')
-            return 1
-        in_database = request.read()
-        print(in_database)
-            
+        updates_source = fetch(args.updates_source)
+        updates_db = fetch([args.database])[args.database]
+        with open(args.output,'w') as file:
+            file.write(updates_db)
+        dbgen(updates_source)
 
 if __name__ == '__main__':
     exit(main(sys.argv))
