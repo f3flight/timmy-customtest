@@ -141,30 +141,40 @@ def main(argv=None):
     else:
         parser = argparse.ArgumentParser(description='Build the deb database')
         parser.add_argument('-r', '--release',
-                            help='release version (example: 6.1)')
+                            help=('Mandatory. '
+                                  'Release version (example: 6.1).'
+                                 ))
         parser.add_argument('-g', '--release-source', nargs='+',
-                            help=('this option is mandatory when GA is '
-                                  'processed, it should be a URL to GA '
-                                  'Packages file(s). Local files are '
-                                  'supported via file://<abs-path>. '
-                                  'Provide all URLs at once, like so: '
-                                  '-g http://... file://... file://...'
+                            help=('Mandatory when GA is processed. '
+                                  'URL(s) to GA Packages file(s). '
+                                  'Local files are supported via '
+                                  'file://<abs-path>. '
+                                  'You must provide all URLs at once, like '
+                                  'so: -g http://... file://... file://...'
                                  ))
         parser.add_argument('-d', '--database',
-                            help=('this option is mandatory when MU is '
-                                  'processed, it should be a URL '
-                                  'to a most updated previously built '
-                                  'database for this release. Local files '
-                                  'are supported by supplying a file link '
-                                  'like so: file://<absolute-path-here>. '
-                                  'Example: -d file:///tmp/database.sqlite'
+                            help=('Mandatory when MU is processed. '
+                                  'URL (only one) to a most updated '
+                                  'database previously built by this '
+                                  'tool for the specified release. '
+                                  'See help for -g for more details.'
                                  ))
         parser.add_argument('-u', '--updates-source', nargs='+',
-                            help='path to MU update Packages file(s)')
+                            help=('Mandatory when MU is processed. '
+                                  'URL(s) to MU update Packages file(s). '
+                                  'See help for -g for more details.'
+                                 ))
         parser.add_argument('-n', '--mu-number',
-                            help='integer ID of the MU update')
+                            help=('Mandatory when MU is processed. '
+                                  'integer ID of the MU update.'
+                                 ))
         parser.add_argument('-o', '--output',
-                            help='path to the output database file')
+                            help=('Mandatory. '
+                                  'Path (not URL) to the output database '
+                                  'file. Must not be the same file as -d '
+                                  'because output file is cleaned before '
+                                  'opening the database.'
+                                 ))
 
         args = parser.parse_args(argv[1:])
         args_check_error = verify_args()
@@ -184,7 +194,7 @@ def main(argv=None):
         updates_db = fetch([args.database])[args.database]
         with open(args.output,'w') as file:
             file.write(updates_db)
-        dbgen(updates_source)
+        dbgen(updates_source, args.mu_number)
 
 if __name__ == '__main__':
     exit(main(sys.argv))
