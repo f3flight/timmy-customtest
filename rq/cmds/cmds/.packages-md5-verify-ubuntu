@@ -5,29 +5,26 @@ do
   pkg=$(echo "$l" | cut -f1)
   if [ -f "/var/lib/dpkg/info/${pkg}:amd64.md5sums" ]
   then
-    result=$(cd /; nice -n 19 ionice -c 3 md5sum --quiet -c /var/lib/dpkg/info/${pkg}:amd64.md5sums 2>&1)
+    result="$(cd /; nice -n 19 ionice -c 3 md5sum --quiet -c /var/lib/dpkg/info/${pkg}:amd64.md5sums 2>&1)"
   else
-    result=$(cd /; nice -n 19 ionice -c 3 md5sum --quiet -c /var/lib/dpkg/info/${pkg}.md5sums 2>&1)
+    result="$(cd /; nice -n 19 ionice -c 3 md5sum --quiet -c /var/lib/dpkg/info/${pkg}.md5sums 2>&1)"
   fi
   if [ "$?" -ne 0 ]
   then
     #exclude packages for which we cannot verify md5sum, no md5sums file
-    if [ "$(echo $result | grep md5sums | grep -c 'No such file')" -gt 0 ]
+    if [ "$(echo "$result" | grep md5sums | grep -c 'No such file')" -gt 0 ]
     then
       continue
     fi
 
     #exclude .pyc files
-    if [ "$(echo $result | grep -c '.pyc$')" -eq 1 ]
-    then
-      continue
-    fi
+    result="$(echo "$result" | grep -v '.pyc$')"
 
     #exclude bad formatted / empty md5sum files and md5sum summary lines
-    if [ "$(echo $result | grep -c 'did NOT match\|md5sum: ')" -eq 1 ]
+    result="$(echo "$result" | grep -v 'did NOT match\|md5sum: ')"
+    if [ -n "$result" ]
     then
-      continue
+      echo -e "$result" | sed "s|^|$l\t|"
     fi
-    echo -e "${l}\t$result"
   fi
 done
