@@ -1,7 +1,7 @@
 #!/usr/bin/env python2
 # -*- coding: utf-8 -*-
 
-#    Copyright 2015 Mirantis, Inc.
+#    Copyright 2016 Mirantis, Inc.
 #
 #    Licensed under the Apache License, Version 2.0 (the "License"); you may
 #    not use this file except in compliance with the License. You may obtain
@@ -201,6 +201,12 @@ def deb_vercmp(a, b):
         return b_newer
     return equal
 
+def vercmp(os, a, b):
+  if os == 'centos':
+      return rpm_vercmp(a, b)
+  if os == 'ubuntu':
+      return deb_vercmp(a, b)
+
 def load_versions_db(nodes):
     db_dir='db/versions'
     db_files = set()
@@ -277,6 +283,8 @@ def nodes_init():
     return n    
 
 def output_add(output, node, message, key=None):
+    # deunicodize
+    # message = str(message)
     if node.cluster == 0:
         if 'fuel' not in output:
             if key:
@@ -428,26 +436,39 @@ def verify_md5_with_db_show_results(node, output=None):
     return output
 
 def max_versions_dict(versions_db):
+    # returns a dict hierarchy containing package names and their highest
+    # available versions
+    # structure is max_version[release][os][package_name] = {'version', 'mu'}
+    
+    def put(version, mu, element=None):
+        if not element:
+            element = {}
+        element['version'] = version
+        element['mu'] = 'MU'+str(mu) if mu > 0 else 'GA'
+        return element
+
     versions_db_cursor = versions_db.cursor()
     data = versions_db_cursor.execute('''
-        SELECT release, os, package_name, package_version
+        SELECT release, os, package_name, package_version, mu
         FROM versions
         ''').fetchall()
     max_version = {}
     for el in data:
-        if el[0] not in max_version:
-            max_version[el[0]] = {}
-        if el[1] not in max_version[el[0]]:
-            max_version[el[0]][el[1]] = {}
-        if el[2] not in max_version[el[0]][el[1]]:
-            max_version[el[0]][el[1]][el[2]] = el[3]
+        release = el[0]
+        os = el[1]
+        p_name = el[2]
+        p_ver = el[3]
+        mu = el[4]
+        if release not in max_version:
+            max_version[release] = {}
+        if os not in max_version[release]:
+            max_version[release][os] = {}
+        if p_name not in max_version[release][os]:
+            max_version[release][os][p_name] = put(p_ver, mu)
         else:
-            if el[1] == 'centos':
-                if rpm_vercmp(el[3], max_version[el[0]][el[1]][el[2]]) > 0:
-                    max_version[el[0]][el[1]][el[2]] = el[3]
-            if el[1] == 'ubuntu':
-                if deb_vercmp(el[3], max_version[el[0]][el[1]][el[2]]) > 0:
-                    max_version[el[0]][el[1]][el[2]] = el[3]
+            element = max_version[release][os][p_name]
+            if vercmp(os, p_ver, element['version']) > 0:
+                put(p_ver, mu, max_version[release][os][p_name])
     return max_version
 
 def mu_safety_check(node, mvd, output=None):
@@ -458,21 +479,29 @@ def mu_safety_check(node, mvd, output=None):
             if node.release in mvd:
                 if node.os_platform in mvd[node.release]:
                     if p_name in mvd[node.release][node.os_platform]:
-                        if node.os_platform == 'centos':
-                            r = rpm_vercmp(mvd[node.release][node.os_platform][p_name], p_version)
-                        if node.os_platform == 'ubuntu':
-                            r = deb_vercmp(mvd[node.release][node.os_platform][p_name], p_version)
-                        if r > 0:
-                            output_add(output, node,
-                                'custom '+p_reasons+' package '+ str(p_name)
-                                +' version '+str(p_version)
-                                +' will be overwritten by MU version '+str(mvd[node.release][node.os_platform][p_name]))
-                        else:
-                            output_add(output, node,
-                                'custom '+p_reasons+'package '+ str(p_name)
-                                +' version '+str(p_version)
-                                +' will prevent (MU or release) version '+str(mvd[node.release][node.os_platform][p_name])
-                                +' from being installed')
+                        mvd_package = mvd[node.release][node.os_platform][p_name]
+                        if mvd_package['mu'] != 'GA':
+                            r = vercmp(node.os_platform, mvd_package['version'], p_version)
+                            if r > 0:
+                                output_add(
+                                    output,
+                                    node,
+                                    'custom %s %s %s will be overwritten by %s version %s' % (
+                                        p_reasons,
+                                        p_name,
+                                        p_version,
+                                        mvd[node.release][node.os_platform][p_name]['mu'],
+                                        mvd[node.release][node.os_platform][p_name]['version']))
+                            else:
+                                output_add(
+                                    output,
+                                    node,
+                                    'custom %s %s %s will prevent %s version %s from being installed' % (
+                                        p_reasons,
+                                        p_name,
+                                        p_version,
+                                        mvd[node.release][node.os_platform][p_name]['mu'],
+                                        mvd[node.release][node.os_platform][p_name]['version']))
     return output
 
 def update_candidates(db, node, mvd, output=None):
@@ -493,19 +522,20 @@ def update_candidates(db, node, mvd, output=None):
         reader = csv.reader(packagelist, delimiter='\t')
         for p_name, p_version in reader:
             if p_name in mvd[node.release][node.os_platform]:
-                if node.os_platform == 'centos':
-                    r = rpm_vercmp(mvd[node.release][node.os_platform][p_name], p_version)
-                if node.os_platform == 'ubuntu':
-                    r = deb_vercmp(mvd[node.release][node.os_platform][p_name], p_version)
+                mvd_package = mvd[node.release][node.os_platform][p_name]
+                r = vercmp(node.os_platform, mvd_package['version'], p_version)
                 if r > 0:
-                    p_state = 'vanilla'
+                    p_state = ''
                     if hasattr(node, 'custom_packages') and p_name in node.custom_packages:
-                        p_state = 'custom ['+', '.join(node.custom_packages[p_name]['reasons'])+']'
-                    output_add(output, node,
-                        p_state+' package '+str(p_name)
-                        +' '+str(p_version)
-                        +' --> '
-                        +str(mvd[node.release][node.os_platform][p_name]))
+                        p_state = 'custom ['+', '.join(node.custom_packages[p_name]['reasons'])+'] '
+                    output_add(
+                        output,
+                        node,
+                        { '%s%s' % (p_state, p_name): str('%s (from %s to %s)' % (
+                            mvd_package['mu'],
+                            p_version,
+                            mvd_package['version']))}
+                    )
     return output
 
 def perform(description, function, n, args, ok_message):
