@@ -378,8 +378,8 @@ def verify_versions(db, node, output=None):
                     node.custom_packages[p_name]['version'] = p_version
                     node.custom_packages[p_name]['reasons'].add('version')
                     output_add(output, node,
-                        +'package version not in db - '+p_name
-                        +', version '+str(p_version))
+                        'package version not in db - %s, version %s' % (
+                            p_name, str(p_version)))
                     continue
                 # unknown package, skipping.
                 continue
@@ -486,22 +486,22 @@ def mu_safety_check(node, mvd, output=None):
                                 output_add(
                                     output,
                                     node,
-                                    'custom %s %s %s will be overwritten by %s version %s' % (
+                                    str('custom %s %s %s will be overwritten by %s version %s' % (
                                         p_reasons,
                                         p_name,
                                         p_version,
                                         mvd[node.release][node.os_platform][p_name]['mu'],
-                                        mvd[node.release][node.os_platform][p_name]['version']))
+                                        mvd[node.release][node.os_platform][p_name]['version'])))
                             else:
                                 output_add(
                                     output,
                                     node,
-                                    'custom %s %s %s will prevent %s version %s from being installed' % (
+                                    str('custom %s %s %s will prevent %s version %s from being installed' % (
                                         p_reasons,
                                         p_name,
                                         p_version,
                                         mvd[node.release][node.os_platform][p_name]['mu'],
-                                        mvd[node.release][node.os_platform][p_name]['version']))
+                                        mvd[node.release][node.os_platform][p_name]['version'])))
     return output
 
 def update_candidates(db, node, mvd, output=None):
