@@ -211,7 +211,7 @@ def load_versions_db(nodes):
     db_dir='db/versions'
     db_files = set()
     output = {}
-    for node in nodes.nodes.values():
+    for node in [n for n in nodes.nodes.values() if n.status == 'ready' and n.online == True]:
         db_file = os.path.join(db_dir, str(node.release), str(node.os_platform)+'.sqlite')
         if not os.path.isfile(db_file):
             output_add(output, node,
