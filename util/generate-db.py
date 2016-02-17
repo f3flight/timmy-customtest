@@ -6,6 +6,10 @@ import urllib2
 import sqlite3
 import os
 import bz2
+import zlib
+import tempfile
+import xml.etree.ElementTree as ET
+from StringIO import StringIO
 
 releases = ['5.1',
             '5.1.1',
@@ -73,36 +77,56 @@ def main(argv=None):
             packages.append(package)
         return packages
 
-    def rpms_from_source(data):
+    def rpms_from_source(data, source):
         packages = []
-        tmpfile = '/tmp/centos-repodata-primary.sqlite'
-        with open(tmpfile, 'w') as file:
-            file.write(bz2.decompress(data))
-        db = sqlite3.connect(tmpfile)
-        dbc = db.cursor()
-        packagedata = dbc.execute('''
-           SELECT
-               name,
-               epoch,
-               version,
-               release,
-               location_href
-           FROM packages
-           ''')
-        for pd in packagedata:
-            if pd[4].split('/')[0] != 'Packages':
-                #ignore source rpms
-                continue
-            package = {}
-            package['Package'] = pd[0]
-            if pd[1] != '0':
-                package['Version'] = pd[1]+':'+pd[2]+'-'+pd[3]
+        with tempfile.NamedTemporaryFile() as tf:
+            if source.endswith('.sqlite.bz2'):
+                tf.write(bz2.decompress(data))
+                db = sqlite3.connect(tf.name)
+                dbc = db.cursor()
+                packagedata = dbc.execute('''
+                   SELECT
+                       name,
+                       epoch,
+                       version,
+                       release,
+                       location_href
+                   FROM packages
+                   ''')
+                for pd in packagedata:
+                    if pd[4].split('/')[0] != 'Packages':
+                        #ignore source rpms
+                        continue
+                    package = {}
+                    package['Package'] = pd[0]
+                    if pd[1] != '0':
+                        package['Version'] = pd[1]+':'+pd[2]+'-'+pd[3]
+                    else:
+                        package['Version'] = pd[2]+'-'+pd[3]
+                    package['Filename'] = pd[4].split('/')[-1]
+                    packages.append(package)
+                db.close()
+            elif source.endswith('xml.gz'):
+                xmldata = zlib.decompress(data, zlib.MAX_WBITS | 16)
+                xmltree = ET.iterparse(StringIO(xmldata))
+                # strip namespaces
+                for _, el in xmltree:
+                    if '}' in el.tag:
+                        el.tag = el.tag.split('}', 1)[1]
+                for pd in xmltree.root:
+                    package = {}
+                    p_ep = pd.find('version').get('epoch')
+                    p_ver = pd.find('version').get('ver')
+                    p_rel = pd.find('version').get('rel')
+                    package['Package'] = pd.findtext('name')
+                    package['Filename'] = pd.find('location').get('href').split('/')[-1]
+                    if p_ep != '0':
+                        package['Version'] = '%s:%s-%s' % (p_ep, p_ver, p_rel)
+                    else:
+                        package['Version'] = '%s-%s' % (p_ver, p_rel)
+                    packages.append(package)
             else:
-                package['Version'] = pd[2]+'-'+pd[3]
-            package['Filename'] = pd[4].split('/')[-1]
-            packages.append(package)
-        db.close()
-        os.remove(tmpfile)
+                print('unknown format of %s' % (source,))
         return packages
 
     def dbgen(sources, mu=0, job_id=-1):
@@ -145,7 +169,7 @@ def main(argv=None):
             if args.os == 'ubuntu':
                 packages = debs_from_source(data)
             if args.os == 'centos':
-                packages = rpms_from_source(data)
+                packages = rpms_from_source(data, source)
             for package in packages:
                 r = dbc.execute('''
                     SELECT source_id, mu FROM versions
