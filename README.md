@@ -1,12 +1,17 @@
 # timmy-virgintest
-Python-based tool which uses Timmy to find customizations in Mirantis OpenStack and check if MU installation would overwrite them.
+Python-based tool which uses Timmy as a backend. Provides the following info about the environemnts and Fuel server:
+- custom package versions
+- post-install file changes (built-in md5 verification)
+- checks if these customizations interfere with MU installation
+- provides a list of packages for which there are updated versions available
 
 # Prerequisites
-- Timmy (https://github.com/adobdin/timmy)
-- symlink Timmy folder into a python path (for example /usr/lib/python2.6/site-packages)
+- clone Timmy (https://github.com/adobdin/timmy)
+- symlink Timmy folder into a python path (for example `ln -s ~/timmy /usr/lib/python2.6/site-packages/timmy`)
 
-# Usage 
-- start the tool by running `./virgintest.py`, optionally redirect output to a file: `./virgintest.py > results.yaml`
+# Usage
+- make sure you are ok to load your nodes (root partition), since the tool will do md5 verification of each installed package on each node (Timmy uses `nice` and `ionice` to minimize the impact)
+- start the tool by running `./virgintest.py` (executing from a different folder not yet supprted), optionally redirect output to a file: `./virgintest.py > results.yaml`
 - be happy
 
 # Reading the output
