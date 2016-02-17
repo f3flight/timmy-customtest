@@ -367,8 +367,8 @@ def verify_versions(db, node, output=None):
             if not match:
                 # try all versions for current release
                 match = versions_db_cursor.execute('''
-                SELECT * FROM versions
-                WHERE release = ?
+                    SELECT * FROM versions
+                    WHERE release = ?
                     AND os = ?
                     AND package_name = ?''', (node.release, node.os_platform, p_name)).fetchall()
                 if match:
@@ -376,13 +376,28 @@ def verify_versions(db, node, output=None):
                         node.custom_packages[p_name] = {}
                         node.custom_packages[p_name]['reasons'] = set()
                     node.custom_packages[p_name]['version'] = p_version
-                    node.custom_packages[p_name]['reasons'].add('version')
-                    output_add(output, node,
-                        'package version not in db - %s, version %s' % (
-                            p_name, str(p_version)))
-                    continue
-                # unknown package, skipping.
-                continue
+                    # check if this is a divergent package introduced in MUs only
+                    match = versions_db_cursor.execute('''
+                        SELECT * FROM versions
+                        WHERE release = ?
+                        AND os = ?
+                        AND package_name = ?
+                        AND mu = 0''', (node.release, node.os_platform, p_name)).fetchall()
+                    if match:
+                        node.custom_packages[p_name]['reasons'].add('version')
+                        output_add(output, node,
+                            'package version not in db - %s, version %s' % (
+                                p_name, str(p_version)))
+                    else:
+                        # divergent package - skipping
+                        node.custom_packages[p_name]['reasons'].add('upstream')
+                        # output_add(output, node,
+                        #     'installed upstream %s has a divergent version in MU, consider updating' % (
+                        #         p_name,))
+                        pass
+                else:
+                    # unknown package, nothing to compare with, so skipping.
+                    pass
     return output
 
 def verify_md5_builtin_show_results(node, output=None):
@@ -471,32 +486,39 @@ def max_versions_dict(versions_db):
                 put(p_ver, mu, max_version[release][os][p_name])
     return max_version
 
+def get_reasons_string(reasons_list):
+    if 'upstream' in reasons_list:
+        return 'upstream'
+    else:
+        return 'custom ['+', '.join(reasons_list)+']'
+
+
 def mu_safety_check(node, mvd, output=None):
     if hasattr(node, 'custom_packages'):
         for p_name, p_data in node.custom_packages.items():
             p_version = p_data['version']
-            p_reasons = '['+', '.join(p_data['reasons'])+']'
+            p_reasons = get_reasons_string(p_data['reasons'])
             if node.release in mvd:
                 if node.os_platform in mvd[node.release]:
                     if p_name in mvd[node.release][node.os_platform]:
                         mvd_package = mvd[node.release][node.os_platform][p_name]
                         if mvd_package['mu'] != 'GA':
                             r = vercmp(node.os_platform, mvd_package['version'], p_version)
-                            if r > 0:
+                            if r > 0 and p_reasons != 'upstream':
                                 output_add(
                                     output,
                                     node,
-                                    str('custom %s %s %s will be overwritten by %s version %s' % (
+                                    str('%s %s %s will be overwritten by %s version %s' % (
                                         p_reasons,
                                         p_name,
                                         p_version,
                                         mvd[node.release][node.os_platform][p_name]['mu'],
                                         mvd[node.release][node.os_platform][p_name]['version'])))
-                            else:
+                            elif r <= 0:
                                 output_add(
                                     output,
                                     node,
-                                    str('custom %s %s %s will prevent %s version %s from being installed' % (
+                                    str('%s %s %s may prevent %s version %s from being installed' % (
                                         p_reasons,
                                         p_name,
                                         p_version,
@@ -524,10 +546,10 @@ def update_candidates(db, node, mvd, output=None):
             if p_name in mvd[node.release][node.os_platform]:
                 mvd_package = mvd[node.release][node.os_platform][p_name]
                 r = vercmp(node.os_platform, mvd_package['version'], p_version)
-                if r > 0:
-                    p_state = ''
-                    if hasattr(node, 'custom_packages') and p_name in node.custom_packages:
-                        p_state = 'custom ['+', '.join(node.custom_packages[p_name]['reasons'])+'] '
+                p_state = ''
+                if hasattr(node, 'custom_packages') and p_name in node.custom_packages:
+                    p_state = get_reasons_string(node.custom_packages[p_name]['reasons'])+' '
+                if r > 0 or (r < 0 and p_state == 'upstream '):
                     output_add(
                         output,
                         node,

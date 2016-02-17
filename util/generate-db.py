@@ -148,7 +148,7 @@ def main(argv=None):
                 packages = rpms_from_source(data)
             for package in packages:
                 r = dbc.execute('''
-                    SELECT rowid FROM versions
+                    SELECT source_id, mu FROM versions
                     WHERE release = ?
                           AND mu = ?
                           AND os = ?
@@ -161,8 +161,21 @@ def main(argv=None):
                           package['Package'],
                           package['Version'],
                           package['Filename']))
-                if len(r.fetchall()) > 0:
-                    print('Duplicate package '+str(package)+', skipping...')
+                pkgs = r.fetchall()
+                if len(pkgs) > 0:
+                    found_mu = 'GA' if pkgs[0][1] == 0 else 'MU%s' % (pkgs[0][1])
+                    r = dbc.execute('''
+                        SELECT source FROM sources
+                        WHERE id = ?
+                        ''', (pkgs[0][0],))
+                    found_source = r.fetchone()[0]
+                    print('  Duplicate package in %s\n    %s %s\n'
+                          '    already provided by %s (%s)\n  Skipping...' % (
+                              source,
+                              package['Package'],
+                              package['Version'],
+                              found_source,
+                              found_mu))
                 else:
                     dbc.execute('''
                         INSERT INTO versions
