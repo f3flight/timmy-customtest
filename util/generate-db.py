@@ -147,7 +147,7 @@ def main(argv=None):
                     source_id INTEGER,
                     job_id INTEGER,
                     release TEXT,
-                    mu TEXT,
+                    mu INTEGER,
                     os TEXT,
                     package_name TEXT,
                     package_version TEXT,

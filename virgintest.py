@@ -233,7 +233,7 @@ def load_versions_db(nodes):
             id INTEGER,
             job_id INTEGER,
             release TEXT,
-            mu TEXT,
+            mu INTEGER,
             os TEXT,
             package_name TEXT,
             package_version TEXT,
@@ -528,7 +528,7 @@ def mu_safety_check(node, mvd, output=None):
                                         p_version,
                                         mvd[node.release][node.os_platform][p_name]['mu'],
                                         mvd[node.release][node.os_platform][p_name]['version'])))
-                            elif r < 0:
+                            elif r <= 0:
                                 output_add(
                                     output,
                                     node,
@@ -594,8 +594,7 @@ def main(argv=None):
     parser = argparse.ArgumentParser()
     parser.add_argument('-f', '--fake',
         help="Do not perform remote commands, use already collected data",
-        action="store_true",
-        default=False)
+        action="store_true")
     args = parser.parse_args(argv[1:])
     sys.stdout.write('Getting node list: ')
     n = nodes_init()
