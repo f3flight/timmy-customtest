@@ -228,7 +228,7 @@ def main(argv=None):
         sys.stderr.write('Error: no parameters specified.\n')
         return 1
     else:
-        parser = argparse.ArgumentParser(description='Build the deb database')
+        parser = argparse.ArgumentParser(description='Build or update a versions database')
         parser.add_argument('-s', '--os',
                             help=('Mandatory. '
                                   'OS, for which the db is generated - '
