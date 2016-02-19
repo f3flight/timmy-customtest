@@ -1,0 +1,4 @@
+perl	5.18.2-2ubuntu1	usr/share/man/man1/pod2latex.1.gz: FAILED open or read
+perl	5.18.2-2ubuntu1	usr/bin/pod2latex: FAILED
+vim-tiny	2:7.4.052-1ubuntu3	usr/share/vim/vim74/doc/help.txt: FAILED
+vim-tiny	2:7.4.052-1ubuntu3	usr/share/vim/vim74/doc/tags: FAILED

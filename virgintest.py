@@ -407,21 +407,34 @@ def verify_md5_builtin_show_results(node, output=None):
         return output_add(output, node, 'builtin md5 data was not collected!')
     if not os.path.exists(node.mapcmds[command]):
         return output_add(output, node, 'builtin md5 data output file is missing!')
-    if os.stat(node.mapcmds[command]).st_size > 0:
-        with open(node.mapcmds[command], 'r') as md5errorlist:
-            reader = csv.reader(md5errorlist, delimiter='\t')
+    ex_filename = 'db/md5/%s/%s.filter' % (node.release, node.os_platform)
+    # value-less dict
+    ex = {}
+    if os.path.isfile(ex_filename):
+        with open(ex_filename, 'r') as ex_file:
+            reader = csv.reader(ex_file, delimiter='\t')
             for p_name, p_version, details in reader:
-                if p_name not in ignored_packages:
-                    if not hasattr(node,'custom_packages'):
-                        node.custom_packages = {}
-                    if p_name not in node.custom_packages:
-                        node.custom_packages[p_name] = {}
-                        node.custom_packages[p_name]['reasons'] = set()
-                    node.custom_packages[p_name]['version'] = p_version
-                    node.custom_packages[p_name]['reasons'].add('builtin-md5')
-                    output_add(output, node,
-                        str(details).strip(),
-                        str(p_name)+' '+str(p_version))
+                if p_name not in ex:
+                    ex[p_name] = {}
+                if p_version not in ex[p_name]:
+                    ex[p_name][p_version] = {}
+                ex[p_name][p_version][details] = None
+    if os.stat(node.mapcmds[command]).st_size > 0:
+        with open(node.mapcmds[command], 'r') as md5_file:
+            reader = csv.reader(md5_file, delimiter='\t')
+            for p_name, p_version, details in reader:
+                if p_name in ex and p_version in ex[p_name] and details in ex[p_name][p_version]:
+                    continue
+                if not hasattr(node,'custom_packages'):
+                    node.custom_packages = {}
+                if p_name not in node.custom_packages:
+                    node.custom_packages[p_name] = {}
+                    node.custom_packages[p_name]['reasons'] = set()
+                node.custom_packages[p_name]['version'] = p_version
+                node.custom_packages[p_name]['reasons'].add('builtin-md5')
+                output_add(output, node,
+                    str(details).strip(),
+                    str(p_name)+' '+str(p_version))
     return output
 
 def verify_md5_with_db_show_results(node, output=None):
@@ -514,7 +527,7 @@ def mu_safety_check(node, mvd, output=None):
                                         p_version,
                                         mvd[node.release][node.os_platform][p_name]['mu'],
                                         mvd[node.release][node.os_platform][p_name]['version'])))
-                            elif r <= 0:
+                            elif r < 0:
                                 output_add(
                                     output,
                                     node,
