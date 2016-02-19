@@ -528,11 +528,16 @@ def mu_safety_check(node, mvd, output=None):
                                         p_version,
                                         mvd[node.release][node.os_platform][p_name]['mu'],
                                         mvd[node.release][node.os_platform][p_name]['version'])))
-                            elif r <= 0:
+                            elif r < 0 or (r == 0 and p_reasons == 'upstream'): #second case highly unlikely
+                                if p_reasons == 'upstream':
+                                    message = ('%s %s %s needs to be downgraded to %s version %s,'
+                                               ' please ensure repo priorities or disable upstream repos')
+                                else:
+                                    message = '%s %s %s may prevent %s version %s from being installed'
                                 output_add(
                                     output,
                                     node,
-                                    str('%s %s %s may prevent %s version %s from being installed' % (
+                                    str(message % (
                                         p_reasons,
                                         p_name,
                                         p_version,
