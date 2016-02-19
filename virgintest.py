@@ -25,6 +25,7 @@ import re
 import os
 from time import sleep
 import yaml
+import argparse
 
 
 class Unbuffered(object):
@@ -590,6 +591,12 @@ def perform(description, function, n, args, ok_message):
     sleep(1)
 
 def main(argv=None):
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-f', '--fake',
+        help="Do not perform remote commands, use already collected data",
+        action="store_true",
+        default=False)
+    args = parser.parse_args(argv[1:])
     sys.stdout.write('Getting node list: ')
     n = nodes_init()
     print('DONE')
@@ -603,7 +610,7 @@ def main(argv=None):
     else:
         pretty_print(output)
     sys.stdout.write('Collecting data from the nodes: ')
-    n.launch_ssh(n.conf['out-dir'])
+    n.launch_ssh(n.conf['out-dir'], fake=args.fake)
     print('DONE')
     perform('Versions verification analysis', verify_versions, n, {'db':versions_db}, 'OK')
     perform('Built-in md5 verification analysis', verify_md5_builtin_show_results, n, None, 'OK')
