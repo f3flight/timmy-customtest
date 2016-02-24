@@ -501,13 +501,14 @@ def max_versions_dict(versions_db):
                 # Should never happen since the MU order is DESC.
                 # If this happens then it means that package version was
                 # lowered in a subsequent MU, which is against our policy as
-                # of Feb 2016. Alternatively, indicates a DB or repo bug
-                # (different versions of the same package in the same MU).
-                sys.stderr.write('WARNING! Downgrade detected in release %s,'
-                                 ' os %s, MU%s to MU%s, package %s - version'
-                                 ' %s was downgraded to %s' % (
-                                     release, os, mu, element['mu'], p_name,
-                                     p_ver, element['version']))
+                # of Feb 2016.
+                cur_mu_text = 'MU'+str(mu) if mu > 0 else 'GA'
+                if element['mu'] != cur_mu_text:
+                    sys.stderr.write('WARNING! Downgrade detected in release %s,' 
+                                     ' os %s, %s to %s, package %s - version'
+                                     ' %s was downgraded to %s\n' % (
+                                         release, os, cur_mu_text, element['mu'],
+                                         p_name, p_ver, element['version']))
                 put(p_ver, mu, max_version[release][os][p_name])
     return max_version
 
