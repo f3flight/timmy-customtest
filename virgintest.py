@@ -388,7 +388,7 @@ def verify_versions(db, node, output=None):
                     if match:
                         node.custom_packages[p_name]['reasons'].add('version')
                         output_add(output, node,
-                            'package version not in db - %s, version %s' % (
+                            "package version not in db - %s, version '%s'" % (
                                 p_name, str(p_version)))
                     else:
                         # divergent package - skipping
@@ -465,6 +465,9 @@ def verify_md5_with_db_show_results(node, output=None):
                         +' - '+str(details))
     return output
 
+def print_mu(mu):
+    return 'MU'+str(mu) if mu > 0 else 'GA'
+
 def max_versions_dict(versions_db):
     # returns a dict hierarchy containing package names and their highest
     # available versions
@@ -474,7 +477,7 @@ def max_versions_dict(versions_db):
         if not element:
             element = {}
         element['version'] = version
-        element['mu'] = 'MU'+str(mu) if mu > 0 else 'GA'
+        element['mu'] = mu
         return element
 
     versions_db_cursor = versions_db.cursor()
@@ -498,19 +501,23 @@ def max_versions_dict(versions_db):
             max_version[release][os][p_name] = put(p_ver, mu)
         else:
             element = max_version[release][os][p_name]
-            if vercmp(os, p_ver, element['version']) > 0:
+            result = vercmp(os, p_ver, element['version'])
+            if result > 0:
                 # Should never happen since the MU order is DESC.
                 # If this happens then it means that package version was
                 # lowered in a subsequent MU, which is against our policy as
                 # of Feb 2016.
-                cur_mu_text = 'MU'+str(mu) if mu > 0 else 'GA'
-                if element['mu'] != cur_mu_text:
+                if element['mu'] != mu:
                     sys.stderr.write('WARNING! Downgrade detected in release %s,' 
                                      ' os %s, %s to %s, package %s - version'
-                                     ' %s was downgraded to %s\n' % (
-                                         release, os, cur_mu_text, element['mu'],
+                                     " '%s' was downgraded to '%s'\n" % (
+                                         release, os, print_mu(mu), print_mu(element['mu']),
                                          p_name, p_ver, element['version']))
                 put(p_ver, mu, max_version[release][os][p_name])
+            elif result == 0 and mu < element['mu']:
+                # update MU to show in which MU this version was introduced first
+                put(p_ver, mu, max_version[release][os][p_name])
+                
     return max_version
 
 def get_reasons_string(reasons_list):
@@ -535,18 +542,18 @@ def mu_safety_check(node, mvd, output=None):
                                 output_add(
                                     output,
                                     node,
-                                    str('%s %s %s will be overwritten by %s version %s' % (
+                                    str("%s %s '%s' will be overwritten by %s version '%s'" % (
                                         p_reasons,
                                         p_name,
                                         p_version,
-                                        mvd[node.release][node.os_platform][p_name]['mu'],
+                                        print_mu(mvd[node.release][node.os_platform][p_name]['mu']),
                                         mvd[node.release][node.os_platform][p_name]['version'])))
                             elif r < 0 or (r == 0 and p_reasons == 'upstream'): #second case highly unlikely
                                 if p_reasons == 'upstream':
-                                    message = ('%s %s %s needs to be downgraded to %s version %s,'
+                                    message = ("%s %s '%s' needs to be downgraded to %s version '%s',"
                                                ' please ensure repo priorities or disable upstream repos')
                                 else:
-                                    message = '%s %s %s may prevent %s version %s from being installed'
+                                    message = "%s %s '%s' may prevent %s version '%s' from being installed"
                                 output_add(
                                     output,
                                     node,
@@ -554,7 +561,7 @@ def mu_safety_check(node, mvd, output=None):
                                         p_reasons,
                                         p_name,
                                         p_version,
-                                        mvd[node.release][node.os_platform][p_name]['mu'],
+                                        print_mu(mvd[node.release][node.os_platform][p_name]['mu']),
                                         mvd[node.release][node.os_platform][p_name]['version'])))
     return output
 
@@ -585,8 +592,8 @@ def update_candidates(db, node, mvd, output=None):
                     output_add(
                         output,
                         node,
-                        { '%s%s' % (p_state, p_name): str('%s (from %s to %s)' % (
-                            mvd_package['mu'],
+                        { '%s%s' % (p_state, p_name): str("%s (from '%s' to '%s')" % (
+                            print_mu(mvd_package['mu']),
                             p_version,
                             mvd_package['version']))}
                     )
