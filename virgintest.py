@@ -60,10 +60,11 @@ def rpm_vercmp(a, b):
                 return a_newer
             if int(a_epoch.groups()[0]) < int(b_epoch.groups()[0]):
                 return b_newer
-        if int(a_epoch.groups()[0]) > 0:
-            return a_newer
-        if int(a_epoch.groups()[0]) < 0:
-            return b_newer
+        else:
+            if int(a_epoch.groups()[0]) > 0:
+                return a_newer
+            if int(a_epoch.groups()[0]) < 0:
+                return b_newer
     elif b_epoch:
         if int(b_epoch.groups()[0]) > 0:
             return b_newer
