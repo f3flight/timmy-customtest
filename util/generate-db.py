@@ -82,6 +82,7 @@ def main(argv=None):
         with tempfile.NamedTemporaryFile() as tf:
             if source.endswith('.sqlite.bz2'):
                 tf.write(bz2.decompress(data))
+                tf.flush()
                 db = sqlite3.connect(tf.name)
                 dbc = db.cursor()
                 packagedata = dbc.execute('''
