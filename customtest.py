@@ -18,7 +18,8 @@
 
 import logging
 import sys
-from timmy import nodes, loadconf
+from timmy import nodes
+from timmy.conf import Conf
 import csv
 import sqlite3
 import re
@@ -275,7 +276,7 @@ def load_versions_db(nodes):
 def nodes_init():
     logging.basicConfig(level=logging.ERROR,
                         format='%(asctime)s %(levelname)s %(message)s')
-    conf = loadconf.load_conf('config.yaml')
+    conf = Conf.load_conf('config.yaml')
     n = nodes.Nodes(conf=conf,
                     extended=0,
                     cluster=None,
@@ -634,7 +635,7 @@ def main(argv=None):
     else:
         pretty_print(output)
     sys.stdout.write('Collecting data from the nodes: ')
-    n.launch_ssh(n.conf['out-dir'], fake=args.fake)
+    n.launch_ssh(n.conf.outdir, fake=args.fake)
     print('DONE')
     perform('Versions verification analysis', verify_versions, n, {'db':versions_db}, 'OK')
     perform('Built-in md5 verification analysis', verify_md5_builtin_show_results, n, None, 'OK')
