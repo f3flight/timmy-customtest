@@ -30,11 +30,11 @@ def main(argv=None):
             return 'OS not specified.'
         if args.os not in systems:
             return 'Unknown OS specified.'
-        if not args.updates_source:
-            if not args.release:
-                return 'Release not specified.'
-            if args.release not in releases:
+        if not args.release:
+            return 'Release not specified.'
+        elif args.release not in releases:
                 return 'Specified release "'+args.release+'" is unknown.'
+        if not args.updates_source:
             if not args.release_source:
                 return 'Release source not specified.'
         else:
