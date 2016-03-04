@@ -1,3 +1,4 @@
+outdir: './info'
 hard_filter:
     status:  ['ready']
     roles: []
