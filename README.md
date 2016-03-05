@@ -22,5 +22,5 @@ Output is self-explanatory, you might want to view it with Vim and set up foldin
 :set shiftwidth=2
 :set foldmethod=indent
 zM
-
+```
 Now you can unfold the sections you are interested in with `za` and fold them back with `zc`. More info on [Vim wikia](http://vim.wikia.com/wiki/Folding).
