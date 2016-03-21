@@ -589,11 +589,25 @@ def update_candidates(db, node, mvd, output=None):
                 p_state = ''
                 if hasattr(node, 'custom_packages') and p_name in node.custom_packages:
                     p_state = get_reasons_string(node.custom_packages[p_name]['reasons'])+' '
+                p_known_mu = versions_db_cursor.execute('''
+                    SELECT mu FROM versions WHERE 
+                        release = ?
+                        and os = ?
+                        and package_name = ?
+                        and package_version = ?
+                    ORDER BY mu
+                    LIMIT 1
+                    ''', (node.release, node.os_platform, p_name, p_version)).fetchone()
+                if p_known_mu:
+                    print_p_mu = 'GA' if p_known_mu[0] == 0 else 'MU%s' % (p_known_mu[0])
+                else:
+                    print_p_mu = 'N/A'
                 if r > 0 or (r < 0 and p_state == 'upstream '):
                     output_add(
                         output,
                         node,
-                        { '%s%s' % (p_state, p_name): str("%s (from '%s' to '%s')" % (
+                        { '%s%s' % (p_state, p_name): str("%s to %s (from '%s' to '%s')" % (
+                            print_p_mu,
                             print_mu(mvd_package['mu']),
                             p_version,
                             mvd_package['version']))}
