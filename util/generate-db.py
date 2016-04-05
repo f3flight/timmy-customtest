@@ -55,9 +55,9 @@ def main(argv=None):
             try:
                 request = urllib2.urlopen(source)
             except Exception:
-                sys.stderr.write('Error: Could not access '
-                                 +str(source)+'\n')
-                return 1
+                sys.stderr.write('Error: Could not access "%s", verify URL correctness.\n'
+                    % (str(source),))
+                sys,exit(1)
             fetched[source] = request.read()
         return fetched
 
