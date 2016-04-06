@@ -57,7 +57,7 @@ def main(argv=None):
             except Exception:
                 sys.stderr.write('Error: Could not access "%s", verify URL correctness.\n'
                     % (str(source),))
-                sys,exit(1)
+                sys.exit(1)
             fetched[source] = request.read()
         return fetched
 
