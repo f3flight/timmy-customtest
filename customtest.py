@@ -226,7 +226,6 @@ def load_versions_db(nodes):
             db_files.add(db_file)
     if not db_files:
         print('\nNo suitable databases fould for any node!')
-        return
     db = sqlite3.connect(':memory:')
     dbc = db.cursor()
     dbc.execute('''
@@ -579,7 +578,7 @@ def update_candidates(db, node, mvd, output=None):
     if command not in node.mapcmds:
         return output_add(output, node, 'versions data was not collected!')
     if not os.path.exists(node.mapcmds[command]):
-        return output_add(outpu, node, 'versions data output file is missing!')
+        return output_add(output, node, 'versions data output file is missing!')
     with open(node.mapcmds[command],'r') as packagelist:
         reader = csv.reader(packagelist, delimiter='\t')
         for p_name, p_version in reader:
