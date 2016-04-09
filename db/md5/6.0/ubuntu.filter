@@ -1,2 +1,2 @@
-vim-tiny	2:7.3.429-2ubuntu2.1	usr/share/vim/vim73/doc/help.txt: FAILED
-vim-tiny	2:7.3.429-2ubuntu2.1	usr/share/vim/vim73/doc/tags: FAILED
+^vim-tiny.+ubuntu.+usr/share/vim/vim73/doc/help\.txt.*$
+^vim-tiny.+ubuntu.+usr/share/vim/vim73/doc/tags.*$

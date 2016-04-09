@@ -224,8 +224,6 @@ def load_versions_db(nodes):
                        +', this node will be skipped!')
         else:
             db_files.add(db_file)
-    if not db_files:
-        print('\nNo suitable databases fould for any node!')
     db = sqlite3.connect(':memory:')
     dbc = db.cursor()
     dbc.execute('''
@@ -340,6 +338,9 @@ def pretty_print(output):
             else:
                 print('  '+line)
 
+def fstrip(text_file):
+    return [line.rstrip('\n') for line in text_file]
+
 def verify_versions(db, node, output=None):
     versions_db_cursor = db.cursor()
     db_has_release = versions_db_cursor.execute('''
@@ -403,7 +404,6 @@ def verify_versions(db, node, output=None):
     return output
 
 def verify_md5_builtin_show_results(node, output=None):
-    ignored_packages = [ 'vim-tiny' ]
     command = '.packages-md5-verify-'+node.os_platform
     if command not in node.mapcmds:
         return output_add(output, node, 'builtin md5 data was not collected!')
@@ -411,22 +411,22 @@ def verify_md5_builtin_show_results(node, output=None):
         return output_add(output, node, 'builtin md5 data output file is missing!')
     ex_filename = 'db/md5/%s/%s.filter' % (node.release, node.os_platform)
     # value-less dict
-    ex = {}
+    ex_list = []
     if os.path.isfile(ex_filename):
         with open(ex_filename, 'r') as ex_file:
-            reader = csv.reader(ex_file, delimiter='\t')
-            for p_name, p_version, details in reader:
-                if p_name not in ex:
-                    ex[p_name] = {}
-                if p_version not in ex[p_name]:
-                    ex[p_name][p_version] = {}
-                ex[p_name][p_version][details] = None
+            for line in fstrip(ex_file):
+              ex_list.append(line)
     if os.stat(node.mapcmds[command]).st_size > 0:
         with open(node.mapcmds[command], 'r') as md5_file:
-            reader = csv.reader(md5_file, delimiter='\t')
-            for p_name, p_version, details in reader:
-                if p_name in ex and p_version in ex[p_name] and details in ex[p_name][p_version]:
+            for line in fstrip(md5_file):
+                excluded = False
+                for ex_regexp in ex_list:
+                    if re.match(ex_regexp, line):
+                        excluded = True
+                        break
+                if excluded:
                     continue
+                p_name, p_version, details = line.split('\t')
                 if not hasattr(node,'custom_packages'):
                     node.custom_packages = {}
                 if p_name not in node.custom_packages:
