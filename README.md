@@ -9,8 +9,7 @@ Python-based tool for Mirantis OpenStack which uses Timmy as a backend. Provides
 6.0, 6.1, 7.0
 
 # Prerequisites
-- clone timmy (https://github.com/adobdin/timmy)
-- symlink timmy folder into a python path (for example `ln -s ~/timmy /usr/lib/python2.6/site-packages/timmy`)
+- install timmy - `pip install git+https://github.com/adobdin/timmy.git`
 
 # Usage
 - always update timmy before updating timmy-customtest
