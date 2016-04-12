@@ -270,10 +270,9 @@ def load_versions_db(nodes):
     db.commit()
     return db, output
 
-def nodes_init():
+def nodes_init(conf):
     logging.basicConfig(level=logging.ERROR,
                         format='%(asctime)s %(levelname)s %(message)s')
-    conf = Conf.load_conf('config.yaml')
     n = nodes.Nodes(conf=conf,
                     extended=0,
                     cluster=None,
@@ -634,9 +633,15 @@ def main(argv=None):
     parser.add_argument('-f', '--fake',
         help="Do not perform remote commands, use already collected data",
         action="store_true")
+    parser.add_argument('-c', '--config',
+        help="Config file to use to override default configuration. When not specified - config.yaml is used.",
+        default='config.yaml')
     args = parser.parse_args(argv[1:])
     sys.stdout.write('Getting node list: ')
-    n = nodes_init()
+    conf = Conf()
+    if args.config:
+        conf = Conf.load_conf(args.config)
+    n = nodes_init(conf)
     print('DONE')
     sys.stdout.write('Loading necessary databases: ')
     versions_db, output = load_versions_db(n)
