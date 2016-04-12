@@ -638,9 +638,7 @@ def main(argv=None):
         default='config.yaml')
     args = parser.parse_args(argv[1:])
     sys.stdout.write('Getting node list: ')
-    conf = Conf()
-    if args.config:
-        conf = Conf.load_conf(args.config)
+    conf = Conf.load_conf(args.config)
     n = nodes_init(conf)
     print('DONE')
     sys.stdout.write('Loading necessary databases: ')
