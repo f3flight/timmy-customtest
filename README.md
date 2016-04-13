@@ -6,7 +6,7 @@ Python-based tool for Mirantis OpenStack which uses Timmy as a backend. Provides
 - provides a list of packages for which there are updated versions available
 
 # Supported MOS versions:
-6.0, 6.1, 7.0
+6.0, 6.1, 7.0, 8.0
 
 # Prerequisites
 - install timmy - `pip install git+https://github.com/adobdin/timmy.git`
