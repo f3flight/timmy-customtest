@@ -275,8 +275,7 @@ def nodes_init(conf):
                         format='%(asctime)s %(levelname)s %(message)s')
     n = nodes.Nodes(conf=conf,
                     extended=0,
-                    cluster=None,
-                    destdir='/tmp')
+                    cluster=None)
     n.get_node_file_list()
     n.get_release()
     return n    
