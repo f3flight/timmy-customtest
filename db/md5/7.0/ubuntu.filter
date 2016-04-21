@@ -1,0 +1,4 @@
+^perl.+ubuntu.+usr/share/man/man1/pod2latex\.1\.gz.*$
+^perl.+ubuntu.+usr/bin/pod2latex.*$
+^vim-tiny.+ubuntu.+usr/share/vim/vim74/doc/help\.txt.*$
+^vim-tiny.+ubuntu.+usr/share/vim/vim74/doc/tags.*$
