@@ -296,7 +296,7 @@ def node_manager_init(conf):
                     cluster=None)
     nm.get_node_file_list()
     nm.get_release()
-    return n
+    return nm
 
 
 def output_add(output, node, message, key=None):
