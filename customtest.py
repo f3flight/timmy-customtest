@@ -227,11 +227,11 @@ def n_ok(node):
     return node.status == 'ready' and node.online
 
 
-def load_versions_db(nodes):
+def load_versions_db(nm):
     db_dir = 'db/versions'
     db_files = set()
     output = {}
-    for node in [n for n in nodes.nodes.values() if n_ok(n)]:
+    for node in [n for n in nm.nodes.values() if n_ok(n)]:
         db_file = os.path.join(db_dir, str(node.release),
                                str(node.os_platform)+'.sqlite')
         if not os.path.isfile(db_file):
@@ -288,14 +288,14 @@ def load_versions_db(nodes):
     return db, output
 
 
-def nodes_init(conf):
+def node_manager_init(conf):
     logging.basicConfig(level=logging.ERROR,
                         format='%(asctime)s %(levelname)s %(message)s')
-    n = nodes.Nodes(conf=conf,
+    nm = nodes.NodeManager(conf=conf,
                     extended=0,
                     cluster=None)
-    n.get_node_file_list()
-    n.get_release()
+    nm.get_node_file_list()
+    nm.get_release()
     return n
 
 
@@ -661,12 +661,12 @@ def update_candidates(db, node, mvd, output=None):
     return output
 
 
-def perform(description, function, n, args, ok_message):
+def perform(description, function, nm, args, ok_message):
     sys.stdout.write(description+': ')
     output = {}
     if not args:
         args = {}
-    for node in n.nodes.values():
+    for node in nm.nodes.values():
         if n_ok(node):
             args['node'] = node
             args['output'] = output
@@ -675,7 +675,6 @@ def perform(description, function, n, args, ok_message):
         pretty_print(output)
     else:
         print(ok_message)
-    sleep(1)
 
 
 def main(argv=None):
@@ -692,10 +691,10 @@ def main(argv=None):
     args = parser.parse_args(argv[1:])
     sys.stdout.write('Getting node list: ')
     conf = Conf.load_conf(args.config)
-    n = nodes_init(conf)
+    nm = node_manager_init(conf)
     print('DONE')
     sys.stdout.write('Loading necessary databases: ')
-    versions_db, output = load_versions_db(n)
+    versions_db, output = load_versions_db(nm)
     if not versions_db:
         print('Aborting.')
         return 1
@@ -704,17 +703,17 @@ def main(argv=None):
     else:
         pretty_print(output)
     sys.stdout.write('Collecting data from the nodes: ')
-    n.launch_ssh(n.conf.outdir, fake=args.fake)
+    nm.launch_ssh(nm.conf.outdir, fake=args.fake)
     print('DONE')
-    perform('Versions verification analysis', verify_versions, n,
+    perform('Versions verification analysis', verify_versions, nm,
             {'db': versions_db}, 'OK')
     perform('Built-in md5 verification analysis',
-            verify_md5_builtin_show_results, n, None, 'OK')
+            verify_md5_builtin_show_results, nm, None, 'OK')
     perform('[WIP] Database md5 verification analysis',
-            verify_md5_with_db_show_results, n, None, 'SKIPPED')
+            verify_md5_with_db_show_results, nm, None, 'SKIPPED')
     mvd = max_versions_dict(versions_db)
-    perform('MU safety analysis', mu_safety_check, n, {'mvd': mvd}, 'OK')
-    perform('Potential updates', update_candidates, n,
+    perform('MU safety analysis', mu_safety_check, nm, {'mvd': mvd}, 'OK')
+    perform('Potential updates', update_candidates, nm,
             {'db': versions_db, 'mvd': mvd}, 'ALL NODES UP-TO-DATE')
     return 0
 
