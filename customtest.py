@@ -19,12 +19,11 @@
 import logging
 import sys
 from timmy import nodes
-from timmy.conf import Conf
+from timmy.conf import load_conf
 import csv
 import sqlite3
 import re
 import os
-from time import sleep
 import yaml
 import argparse
 
@@ -291,11 +290,7 @@ def load_versions_db(nm):
 def node_manager_init(conf):
     logging.basicConfig(level=logging.ERROR,
                         format='%(asctime)s %(levelname)s %(message)s')
-    nm = nodes.NodeManager(conf=conf,
-                    extended=0,
-                    cluster=None)
-    nm.get_node_file_list()
-    nm.get_release()
+    nm = nodes.NodeManager(conf=conf)
     return nm
 
 
@@ -315,21 +310,21 @@ def output_add(output, node, message, key=None):
     else:
         if node.cluster not in output:
             output[node.cluster] = {}
-        if node.node_id not in output[node.cluster]:
+        if node.id not in output[node.cluster]:
             if key:
-                output[node.cluster][node.node_id] = {
+                output[node.cluster][node.id] = {
                     'roles': node.roles,
                     'output': {}}
             else:
-                output[node.cluster][node.node_id] = {
+                output[node.cluster][node.id] = {
                     'roles': node.roles,
                     'output': []}
         if key:
-            if key not in output[node.cluster][node.node_id]['output']:
-                output[node.cluster][node.node_id]['output'][key] = []
-            output[node.cluster][node.node_id]['output'][key].append(message)
+            if key not in output[node.cluster][node.id]['output']:
+                output[node.cluster][node.id]['output'][key] = []
+            output[node.cluster][node.id]['output'][key].append(message)
         else:
-            output[node.cluster][node.node_id]['output'].append(message)
+            output[node.cluster][node.id]['output'].append(message)
     return output
 
 
@@ -375,7 +370,7 @@ def verify_versions(db, node, output=None):
                           ('the database does not have any data for MOS '
                            'release %s for %s!' % (str(node.release),
                                                    str(node.os_platform))))
-    command = '.packagelist-'+node.os_platform
+    command = 'packagelist-'+node.os_platform
     if command not in node.mapcmds:
         return output_add(output, node, 'versions data was not collected!')
     if not os.path.exists(node.mapcmds[command]):
@@ -432,7 +427,7 @@ def verify_versions(db, node, output=None):
 
 
 def verify_md5_builtin_show_results(node, output=None):
-    command = '.packages-md5-verify-'+node.os_platform
+    command = 'packages-md5-verify-'+node.os_platform
     if command not in node.mapcmds:
         return output_add(output, node, 'builtin md5 data was not collected!')
     if not os.path.exists(node.mapcmds[command]):
@@ -690,7 +685,7 @@ def main(argv=None):
                         default='config.yaml')
     args = parser.parse_args(argv[1:])
     sys.stdout.write('Getting node list: ')
-    conf = Conf.load_conf(args.config)
+    conf = load_conf(args.config)
     nm = node_manager_init(conf)
     print('DONE')
     sys.stdout.write('Loading necessary databases: ')
@@ -703,7 +698,7 @@ def main(argv=None):
     else:
         pretty_print(output)
     sys.stdout.write('Collecting data from the nodes: ')
-    nm.launch_ssh(nm.conf.outdir, fake=args.fake)
+    nm.launch_ssh(conf['outdir'], fake=args.fake)
     print('DONE')
     perform('Versions verification analysis', verify_versions, nm,
             {'db': versions_db}, 'OK')

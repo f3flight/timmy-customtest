@@ -1,7 +1,9 @@
 rqdir: './rq'
+rqfile: './rq.yaml'
 outdir: './info'
 hard_filter:
     status:  ['ready']
     roles: []
-    node_ids: []
+    id: []
+    cluster: []
 timeout: 600
