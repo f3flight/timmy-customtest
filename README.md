@@ -1,5 +1,5 @@
 # timmy-customtest
-Python-based tool for Mirantis OpenStack which uses [Timmy](https://github.com/adobdin/timmy) as a backend. Provides the following info about environemnts and Fuel server:
+Python-based tool for Mirantis OpenStack which uses [Timmy](https://github.com/adobdin/timmy) as a backend. Provides the following info about environments and Fuel server:
 - custom package versions
 - post-install file changes (built-in md5 verification)
 - checks if these customizations interfere with MU installation
