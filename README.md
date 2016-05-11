@@ -15,7 +15,7 @@ Python-based tool for Mirantis OpenStack which uses [Timmy](https://github.com/a
 - install `git`
 - install [Timmy](https://github.com/adobdin/timmy) - `pip install git+https://github.com/adobdin/timmy.git`
 - verify the installation - `python -c 'import timmy'` should not print tracebacks
-- if the installation for some reason was not successfull, install Timmy manually (for ex. into /root folder):
+- if the installation for some reason was not successful, install Timmy manually (for ex. into /root folder):
   1. `cd /root; git clone https://github.com/adobdin/timmy.git`
   2. `ln -s /root/timmy/timmy /usr/lib/python2.X/site-packages/timmy` # change X to the version of Python 2 available on server
   3. verify the installation - `python -c 'import timmy'` should not print tracebacks
