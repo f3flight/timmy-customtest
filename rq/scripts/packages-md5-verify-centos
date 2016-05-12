@@ -1,0 +1,22 @@
+#!/bin/bash
+
+rpm -qa --qf "%{NAME}\t%{EPOCH}:%{VERSION}-%{RELEASE}\n" | sed 's!\t\(0\|(none)\):!\t!' | while read l
+do
+  pkg=$(echo "$l" | cut -f1)
+  nice -n 19 ionice -c 3 rpm --verify $pkg | grep -v ' /etc/' | grep -v ' /root/' | egrep '^..5' | while read line
+  do
+    # exclude .pyc files
+    if [ "$(echo $line | grep -c '.pyc$')" -eq 1 ]
+    then
+      continue
+    fi
+    
+    # exclude /usr/share/openstack-dashboard/static/dashboard/manifest.json, this file is auto-generated (false-positive in MOS 6.0 CentOS)
+    if [ "$(echo $line | grep -c '/usr/share/openstack-dashboard/static/dashboard/manifest.json')" -eq 1 ]
+    then
+      continue
+    fi
+
+    echo -e "${l}\t${line}"
+  done
+done

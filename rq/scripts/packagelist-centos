@@ -1,0 +1,1 @@
+rpm -qa --qf "%{NAME}\t%{EPOCH}:%{VERSION}-%{RELEASE}\n" | sed 's!\t\(0\|(none)\):!\t!'
