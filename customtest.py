@@ -223,15 +223,11 @@ def vercmp(os, a, b):
         return deb_vercmp(a, b)
 
 
-def n_ok(node):
-    return node.status == 'ready' and node.online
-
-
 def load_versions_db(nm):
     db_dir = 'db/versions'
     db_files = set()
     output = {}
-    for node in [n for n in nm.nodes.values() if n_ok(n)]:
+    for node in nm.nodes.values():
         db_file = os.path.join(db_dir, str(node.release),
                                str(node.os_platform)+'.sqlite')
         if not os.path.isfile(db_file):
@@ -429,9 +425,9 @@ def verify_versions(db, node, output=None):
 
 def verify_md5_builtin_show_results(node, output=None):
     command = 'packages-md5-verify-'+node.os_platform
-    if command not in node.mapcmds:
+    if command not in node.mapscr:
         return output_add(output, node, 'builtin md5 data was not collected!')
-    if not os.path.exists(node.mapcmds[command]):
+    if not os.path.exists(node.mapscr[command]):
         return output_add(output, node,
                           'builtin md5 data output file missing!')
     ex_filename = 'db/md5/%s/%s.filter' % (node.release, node.os_platform)
@@ -441,8 +437,8 @@ def verify_md5_builtin_show_results(node, output=None):
         with open(ex_filename, 'r') as ex_file:
             for line in fstrip(ex_file):
                 ex_list.append(line)
-    if os.stat(node.mapcmds[command]).st_size > 0:
-        with open(node.mapcmds[command], 'r') as md5_file:
+    if os.stat(node.mapscr[command]).st_size > 0:
+        with open(node.mapscr[command], 'r') as md5_file:
             for line in fstrip(md5_file):
                 excluded = False
                 for ex_regexp in ex_list:
@@ -466,30 +462,8 @@ def verify_md5_builtin_show_results(node, output=None):
 
 
 def verify_md5_with_db_show_results(node, output=None):
+    # not implemented
     return
-    # needs rework, implementation incomplete - no db delivery to nodes
-    ignored_packages = ['vim-tiny']
-    command = '.packages-md5-db-verify-'+node.os_platform
-    if command not in node.mapcmds:
-        return output_add(output, node, 'db md5 data was not collected!')
-    if not os.path.exists(node.mapcmds[command]):
-        if not output:
-            sys.stdout.write('\n')
-        return output_add(output, node, 'db md5 data output file is missing!')
-    if os.stat(node.mapcmds[command]).st_size > 0:
-        with open(node.mapcmds[command], 'r') as md5errorlist:
-            reader = csv.reader(md5errorlist, delimiter='\t')
-            for id, p_name, p_version, details in reader:
-                if p_name not in ignored_packages:
-                    if not hasattr(node, 'custom_packages'):
-                        node.custom_packages = {}
-                    node.custom_packages[p_name] = p_version
-                    output_add(output, node,
-                               'package_id ' + str(id) +
-                               ', ' + str(p_name) +
-                               ', version ' + str(p_version) +
-                               ' - ' + str(details))
-    return output
 
 
 def print_mu(mu):
@@ -611,12 +585,12 @@ def update_candidates(db, node, mvd, output=None):
                               ('the database does not have any data for MOS '
                                'release %s, os %s!' % (str(node.release),
                                                        str(node.os_platform))))
-    command = '.packagelist-'+node.os_platform
-    if command not in node.mapcmds:
+    command = 'packagelist-'+node.os_platform
+    if command not in node.mapscr:
         return output_add(output, node, 'versions data was not collected!')
-    if not os.path.exists(node.mapcmds[command]):
+    if not os.path.exists(node.mapscr[command]):
         return output_add(output, node, 'versions data output file missing!')
-    with open(node.mapcmds[command], 'r') as packagelist:
+    with open(node.mapscr[command], 'r') as packagelist:
         reader = csv.reader(packagelist, delimiter='\t')
         for p_name, p_version in reader:
             if p_name in mvd[node.release][node.os_platform]:
@@ -663,10 +637,9 @@ def perform(description, function, nm, args, ok_message):
     if not args:
         args = {}
     for node in nm.nodes.values():
-        if n_ok(node):
-            args['node'] = node
-            args['output'] = output
-            function(**args)
+        args['node'] = node
+        args['output'] = output
+        function(**args)
     if output:
         pretty_print(output)
     else:
@@ -683,8 +656,8 @@ def main(argv=None):
     parser.add_argument('-c', '--config',
                         help=("Config file to use to override default "
                               "configuration. When not specified - "
-                              "config.yaml is used."),
-                        default='config.yaml')
+                              "timmy-config.yaml is used."),
+                        default='timmy-config.yaml')
     args = parser.parse_args(argv[1:])
     sys.stdout.write('Getting node list: ')
     conf = load_conf(args.config)

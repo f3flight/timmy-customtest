@@ -2,7 +2,8 @@ rqdir: './rq'
 rqfile: './rq.yaml'
 outdir: './info'
 hard_filter:
-    status:  ['ready']
+    status: ['ready']
+    online: True
     roles: []
     id: []
     cluster: []
