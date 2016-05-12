@@ -20,6 +20,7 @@ import logging
 import sys
 from timmy import nodes
 from timmy.conf import load_conf
+from timmy.tools import interrupt_wrapper
 import csv
 import sqlite3
 import re
@@ -288,7 +289,7 @@ def load_versions_db(nm):
 
 
 def node_manager_init(conf):
-    logging.basicConfig(level=logging.ERROR,
+    logging.basicConfig(level=logging.WARNING,
                         format='%(asctime)s %(levelname)s %(message)s')
     nm = nodes.NodeManager(conf=conf)
     return nm
@@ -371,11 +372,11 @@ def verify_versions(db, node, output=None):
                            'release %s for %s!' % (str(node.release),
                                                    str(node.os_platform))))
     command = 'packagelist-'+node.os_platform
-    if command not in node.mapcmds:
+    if command not in node.mapscr:
         return output_add(output, node, 'versions data was not collected!')
-    if not os.path.exists(node.mapcmds[command]):
+    if not os.path.exists(node.mapscr[command]):
         return output_add(output, node, 'versions data output file missing!')
-    with open(node.mapcmds[command], 'r') as packagelist:
+    with open(node.mapscr[command], 'r') as packagelist:
         reader = csv.reader(packagelist, delimiter='\t')
         if not hasattr(node, 'custom_packages'):
             node.custom_packages = {}
@@ -672,6 +673,7 @@ def perform(description, function, nm, args, ok_message):
         print(ok_message)
 
 
+@interrupt_wrapper
 def main(argv=None):
     parser = argparse.ArgumentParser()
     parser.add_argument('-f', '--fake',
@@ -698,7 +700,7 @@ def main(argv=None):
     else:
         pretty_print(output)
     sys.stdout.write('Collecting data from the nodes: ')
-    nm.launch_ssh(conf['outdir'], fake=args.fake)
+    nm.run_commands(conf['outdir'], fake=args.fake)
     print('DONE')
     perform('Versions verification analysis', verify_versions, nm,
             {'db': versions_db}, 'OK')

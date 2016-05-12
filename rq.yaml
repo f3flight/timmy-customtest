@@ -1,4 +1,4 @@
-cmds:
+scripts:
     by_os_platform:
         centos:
             - packagelist-centos
