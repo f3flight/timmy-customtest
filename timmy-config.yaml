@@ -1,10 +1,14 @@
 rqdir: './rq'
 rqfile: './rq.yaml'
-outdir: './info'
 hard_filter:
     status: ['ready']
     online: True
+    # you can filter by roles
     roles: []
+    # you can filter by node ids
     id: []
+    # you can filter by env ids
     cluster: []
+# timeout is seconds for data collection (per command) - increase if needed
 timeout: 600
+clean: False
