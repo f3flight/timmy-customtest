@@ -1,7 +1,0 @@
-rqdir: './rq'
-outdir: './info'
-hard_filter:
-    status:  ['ready']
-    roles: []
-    node_ids: []
-timeout: 600

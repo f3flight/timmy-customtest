@@ -19,14 +19,15 @@
 import logging
 import sys
 from timmy import nodes
-from timmy.conf import Conf
+from timmy.conf import load_conf
+from timmy.tools import interrupt_wrapper
 import csv
 import sqlite3
 import re
 import os
-from time import sleep
 import yaml
 import argparse
+from vercmp import vercmp
 
 
 class Unbuffered(object):
@@ -41,197 +42,11 @@ class Unbuffered(object):
         return getattr(self.stream, attr)
 
 
-# implementation of RPM's rpmvercmp function
-# http://rpm.org/wiki/PackagerDocs/Dependencies
-# http://rpm.org/api/4.4.2.2/rpmvercmp_8c-source.html#l00015
-def rpm_vercmp(a, b):
-    a_newer = 1
-    b_newer = -1
-    equal = 0
-    if a == b:
-        return equal
-    if a and not b:
-        return a_newer
-    if b and not a:
-        return b_newer
-    a_epoch = re.match('^(-?\d):', a)
-    b_epoch = re.match('^(-?\d):', b)
-    if a_epoch:
-        if b_epoch:
-            if int(a_epoch.groups()[0]) > int(b_epoch.groups()[0]):
-                return a_newer
-            if int(a_epoch.groups()[0]) < int(b_epoch.groups()[0]):
-                return b_newer
-        else:
-            if int(a_epoch.groups()[0]) > 0:
-                return a_newer
-            if int(a_epoch.groups()[0]) < 0:
-                return b_newer
-    elif b_epoch:
-        if int(b_epoch.groups()[0]) > 0:
-            return b_newer
-        if int(b_epoch.groups()[0]) < 0:
-            return a_newer
-    a_list = re.findall('[a-zA-Z]+|[0-9]+', a)
-    b_list = re.findall('[a-zA-Z]+|[0-9]+', b)
-    for index, value in enumerate(a_list):
-        if index >= len(b_list):
-            return a_newer
-        else:
-            if value.isdigit():
-                if not b_list[index].isdigit():
-                    return a_newer
-                else:
-                    if int(value) > int(b_list[index]):
-                        return a_newer
-                    if int(value) < int(b_list[index]):
-                        return b_newer
-            else:
-                if b_list[index].isdigit():
-                    return b_newer
-                else:
-                    if value > b_list[index]:
-                        return a_newer
-                    if value < b_list[index]:
-                        return b_newer
-    if len(b_list) > len(a_list):
-        return b_newer
-    return equal
-
-
-def deb_vercmp(a, b):
-    '''Implementation of Debian version comparison.
-    https://www.debian.org/doc/debian-policy/ch-controlfields.html#s-f-Version
-    http://dpkg.sourcearchive.com/documentation/1.15.6/vercmp_8c-source.html
-    '''
-    def cmp(a, b):
-
-        def order(x):
-            if x == '~':
-                return -1
-            if x.isdigit():
-                return int(x)
-            if ord(x) in range(ord('A'), ord('Z')+1)+range(ord('a'), ord('z')):
-                return x
-            else:
-                return ord(x) + 256
-
-        def check_alpha(a, ia):
-            return ia < len(a) and not a[ia].isdigit()
-
-        def check_digit(a, ia):
-            return ia < len(a) and a[ia].isdigit()
-
-        ia = 0
-        ib = 0
-        iter = -1
-        while ia < len(a) or ib < len(b):
-            iter += 1
-            diff = 0
-            '''Workaround for end of string:
-            add 0 to compare lower then everything except '~'.
-            It is impossible that both ia and ib get over string bounds, so
-            an endless loop cannot happen.
-            '''
-            if ia == len(a):
-                a += '0'
-            if ib == len(b):
-                b += '0'
-            while check_alpha(a, ia) or check_alpha(b, ib):
-                if order(a[ia]) > order(b[ib]):
-                    return 1
-                if order(a[ia]) < order(b[ib]):
-                    return -1
-                ia += 1
-                ib += 1
-            while ia < len(a) and a[ia] == '0':
-                ia += 1
-            while ib < len(b) and b[ib] == '0':
-                ib += 1
-            while check_digit(a, ia) and check_digit(b, ib):
-                if not diff:
-                    diff = int(a[ia]) - int(b[ib])
-                ia += 1
-                ib += 1
-            if ia < len(a) and a[ia].isdigit():
-                return 1
-            if ib < len(b) and b[ib].isdigit():
-                return -1
-            if diff:
-                return diff
-        return 0
-
-    a_newer = 1
-    b_newer = -1
-    equal = 0
-    if a == b:
-        return equal
-    if a and not b:
-        return a_newer
-    if b and not a:
-        return b_newer
-    a_epoch = re.match('^(\d):', a)
-    b_epoch = re.match('^(\d):', b)
-    if a_epoch:
-        if b_epoch:
-            if int(a_epoch.groups()[0]) > int(b_epoch.groups()[0]):
-                return a_newer
-            if int(a_epoch.groups()[0]) < int(b_epoch.groups()[0]):
-                return b_newer
-        elif int(a_epoch.groups()[0]) > 0:
-            return a_newer
-        a = a[2:]
-        b = b[2:]
-    elif b_epoch:
-        if int(b_epoch.groups()[0]) > 0:
-            return b_newer
-        b = b[2:]
-
-    a_parts = re.match('^([^-].+?)?(?:-([^-]+))?$', a)
-    a_version = a_revision = None
-    if a_parts:
-        a_version, a_revision = a_parts.groups()
-    b_parts = re.match('^([^-].+?)?(?:-([^-]+))?$', b)
-    b_version = b_revision = None
-    if b_parts:
-        b_version, b_revision = b_parts.groups()
-    if a_version and not b_version:
-        return a_newer
-    if b_version and not a_version:
-        return b_newer
-    vc = cmp(a_version, b_version)
-    if vc > 0:
-        return a_newer
-    if vc < 0:
-        return b_newer
-    if a_revision and not b_revision:
-        return a_newer
-    if b_revision and not a_revision:
-        return b_newer
-    rc = cmp(a_revision, b_revision)
-    if rc > 0:
-        return a_newer
-    if rc < 0:
-        return b_newer
-    return equal
-
-
-def vercmp(os, a, b):
-    if os == 'centos':
-        return rpm_vercmp(a, b)
-    if os == 'ubuntu':
-        return deb_vercmp(a, b)
-
-
-def n_ok(node):
-    return node.status == 'ready' and node.online
-
-
 def load_versions_db(nm):
     db_dir = 'db/versions'
     db_files = set()
     output = {}
-    for node in [n for n in nm.nodes.values() if n_ok(n)]:
+    for node in nm.nodes.values():
         db_file = os.path.join(db_dir, str(node.release),
                                str(node.os_platform)+'.sqlite')
         if not os.path.isfile(db_file):
@@ -289,13 +104,9 @@ def load_versions_db(nm):
 
 
 def node_manager_init(conf):
-    logging.basicConfig(level=logging.ERROR,
+    logging.basicConfig(level=logging.WARNING,
                         format='%(asctime)s %(levelname)s %(message)s')
-    nm = nodes.NodeManager(conf=conf,
-                    extended=0,
-                    cluster=None)
-    nm.get_node_file_list()
-    nm.get_release()
+    nm = nodes.NodeManager(conf=conf)
     return nm
 
 
@@ -315,21 +126,21 @@ def output_add(output, node, message, key=None):
     else:
         if node.cluster not in output:
             output[node.cluster] = {}
-        if node.node_id not in output[node.cluster]:
+        if node.id not in output[node.cluster]:
             if key:
-                output[node.cluster][node.node_id] = {
+                output[node.cluster][node.id] = {
                     'roles': node.roles,
                     'output': {}}
             else:
-                output[node.cluster][node.node_id] = {
+                output[node.cluster][node.id] = {
                     'roles': node.roles,
                     'output': []}
         if key:
-            if key not in output[node.cluster][node.node_id]['output']:
-                output[node.cluster][node.node_id]['output'][key] = []
-            output[node.cluster][node.node_id]['output'][key].append(message)
+            if key not in output[node.cluster][node.id]['output']:
+                output[node.cluster][node.id]['output'][key] = []
+            output[node.cluster][node.id]['output'][key].append(message)
         else:
-            output[node.cluster][node.node_id]['output'].append(message)
+            output[node.cluster][node.id]['output'].append(message)
     return output
 
 
@@ -375,12 +186,12 @@ def verify_versions(db, node, output=None):
                           ('the database does not have any data for MOS '
                            'release %s for %s!' % (str(node.release),
                                                    str(node.os_platform))))
-    command = '.packagelist-'+node.os_platform
-    if command not in node.mapcmds:
+    command = 'packagelist-'+node.os_platform
+    if command not in node.mapscr:
         return output_add(output, node, 'versions data was not collected!')
-    if not os.path.exists(node.mapcmds[command]):
+    if not os.path.exists(node.mapscr[command]):
         return output_add(output, node, 'versions data output file missing!')
-    with open(node.mapcmds[command], 'r') as packagelist:
+    with open(node.mapscr[command], 'r') as packagelist:
         reader = csv.reader(packagelist, delimiter='\t')
         if not hasattr(node, 'custom_packages'):
             node.custom_packages = {}
@@ -432,10 +243,10 @@ def verify_versions(db, node, output=None):
 
 
 def verify_md5_builtin_show_results(node, output=None):
-    command = '.packages-md5-verify-'+node.os_platform
-    if command not in node.mapcmds:
+    command = 'packages-md5-verify-'+node.os_platform
+    if command not in node.mapscr:
         return output_add(output, node, 'builtin md5 data was not collected!')
-    if not os.path.exists(node.mapcmds[command]):
+    if not os.path.exists(node.mapscr[command]):
         return output_add(output, node,
                           'builtin md5 data output file missing!')
     ex_filename = 'db/md5/%s/%s.filter' % (node.release, node.os_platform)
@@ -445,8 +256,8 @@ def verify_md5_builtin_show_results(node, output=None):
         with open(ex_filename, 'r') as ex_file:
             for line in fstrip(ex_file):
                 ex_list.append(line)
-    if os.stat(node.mapcmds[command]).st_size > 0:
-        with open(node.mapcmds[command], 'r') as md5_file:
+    if os.stat(node.mapscr[command]).st_size > 0:
+        with open(node.mapscr[command], 'r') as md5_file:
             for line in fstrip(md5_file):
                 excluded = False
                 for ex_regexp in ex_list:
@@ -470,30 +281,8 @@ def verify_md5_builtin_show_results(node, output=None):
 
 
 def verify_md5_with_db_show_results(node, output=None):
+    # not implemented
     return
-    # needs rework, implementation incomplete - no db delivery to nodes
-    ignored_packages = ['vim-tiny']
-    command = '.packages-md5-db-verify-'+node.os_platform
-    if command not in node.mapcmds:
-        return output_add(output, node, 'db md5 data was not collected!')
-    if not os.path.exists(node.mapcmds[command]):
-        if not output:
-            sys.stdout.write('\n')
-        return output_add(output, node, 'db md5 data output file is missing!')
-    if os.stat(node.mapcmds[command]).st_size > 0:
-        with open(node.mapcmds[command], 'r') as md5errorlist:
-            reader = csv.reader(md5errorlist, delimiter='\t')
-            for id, p_name, p_version, details in reader:
-                if p_name not in ignored_packages:
-                    if not hasattr(node, 'custom_packages'):
-                        node.custom_packages = {}
-                    node.custom_packages[p_name] = p_version
-                    output_add(output, node,
-                               'package_id ' + str(id) +
-                               ', ' + str(p_name) +
-                               ', version ' + str(p_version) +
-                               ' - ' + str(details))
-    return output
 
 
 def print_mu(mu):
@@ -615,12 +404,12 @@ def update_candidates(db, node, mvd, output=None):
                               ('the database does not have any data for MOS '
                                'release %s, os %s!' % (str(node.release),
                                                        str(node.os_platform))))
-    command = '.packagelist-'+node.os_platform
-    if command not in node.mapcmds:
+    command = 'packagelist-'+node.os_platform
+    if command not in node.mapscr:
         return output_add(output, node, 'versions data was not collected!')
-    if not os.path.exists(node.mapcmds[command]):
+    if not os.path.exists(node.mapscr[command]):
         return output_add(output, node, 'versions data output file missing!')
-    with open(node.mapcmds[command], 'r') as packagelist:
+    with open(node.mapscr[command], 'r') as packagelist:
         reader = csv.reader(packagelist, delimiter='\t')
         for p_name, p_version in reader:
             if p_name in mvd[node.release][node.os_platform]:
@@ -667,16 +456,16 @@ def perform(description, function, nm, args, ok_message):
     if not args:
         args = {}
     for node in nm.nodes.values():
-        if n_ok(node):
-            args['node'] = node
-            args['output'] = output
-            function(**args)
+        args['node'] = node
+        args['output'] = output
+        function(**args)
     if output:
         pretty_print(output)
     else:
         print(ok_message)
 
 
+@interrupt_wrapper
 def main(argv=None):
     parser = argparse.ArgumentParser()
     parser.add_argument('-f', '--fake',
@@ -686,11 +475,11 @@ def main(argv=None):
     parser.add_argument('-c', '--config',
                         help=("Config file to use to override default "
                               "configuration. When not specified - "
-                              "config.yaml is used."),
-                        default='config.yaml')
+                              "timmy-config.yaml is used."),
+                        default='timmy-config.yaml')
     args = parser.parse_args(argv[1:])
     sys.stdout.write('Getting node list: ')
-    conf = Conf.load_conf(args.config)
+    conf = load_conf(args.config)
     nm = node_manager_init(conf)
     print('DONE')
     sys.stdout.write('Loading necessary databases: ')
@@ -703,7 +492,7 @@ def main(argv=None):
     else:
         pretty_print(output)
     sys.stdout.write('Collecting data from the nodes: ')
-    nm.launch_ssh(nm.conf.outdir, fake=args.fake)
+    nm.run_commands(conf['outdir'], fake=args.fake)
     print('DONE')
     perform('Versions verification analysis', verify_versions, nm,
             {'db': versions_db}, 'OK')
