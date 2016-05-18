@@ -21,6 +21,8 @@ import sys
 from timmy import nodes
 from timmy.conf import load_conf
 from timmy.tools import interrupt_wrapper
+import urllib2
+import hashlib
 import csv
 import sqlite3
 import re
@@ -43,19 +45,91 @@ class Unbuffered(object):
 
 
 def load_versions_db(nm):
+    def fetch(url):
+        try:
+            return urllib2.urlopen(url).read()
+        except:
+            return None
+
+    def online(release, os_platform, ext):
+        url = ('http://mirror.fuel-infra.org/mcv/mos/%s/'
+               '%s-latest.%s' % (release, os_platform, ext))
+        return fetch(url)
+
+    def update_db(db_file, release, os_platform):
+        ext_db = online(release, os_platform, 'sqlite')
+        if ext_db:
+            open(db_file, 'w').write(ext_db)
+        else:
+            return False
+        return True
+
+    msg_newer_ok = ('a newer versions db for MOS %s %s was found online '
+                    'and successfully downloaded.')
+    msg_newer_unkn = ('could not check for versions db updates for '
+                      'MOS %s %s online, using local copy.')
+    msg_newer_fail = ('a newer verisons db for MOS %s %s was found online '
+                      'but download failed, using an older local copy.')
+    msg_nodb_ok = ('versions db for MOS %s %s was not present but was '
+                   'successfully downloaded from an online mirror.')
+    msg_nodb_fail = ('no versions db found for MOS %s %s and could not '
+                     'download from a mirror - this node will be skipped!')
     db_dir = 'db/versions'
+    dbs = {}
     db_files = set()
     output = {}
     for node in nm.nodes.values():
-        db_file = os.path.join(db_dir, str(node.release),
-                               str(node.os_platform)+'.sqlite')
-        if not os.path.isfile(db_file):
+        r = node.release
+        p = node.os_platform
+        if not r or not p:
             output_add(output, node,
-                       ('no database found for release %s, os %s, this node '
-                        'will be skipped!'
-                        % (str(node.release), str(node.os_platform))))
-        else:
-            db_files.add(db_file)
+                       ('could not determine release or os, this node will'
+                        'be skipped! Release: %s, OS: %s') % (r, p))
+            continue
+        if r not in dbs:
+            dbs[r] = {}
+        if p not in dbs[r]:
+            dbs[r][p] = {}
+        if 'nodes' not in dbs[r][p]:
+            dbs[r][p]['nodes'] = []
+        dbs[r][p]['nodes'].append(node)
+        if 'dir' not in dbs[r][p]:
+            dbs[r][p]['dir'] = os.path.join(db_dir, r)
+        if 'file' not in dbs[r][p]:
+            dbs[r][p]['file'] = os.path.join(db_dir, r, '%s.sqlite' % p)
+    for r in dbs:
+        for p in dbs[r]:
+            d = dbs[r][p]['dir']
+            f = dbs[r][p]['file']
+            if not os.path.isdir(d):
+                os.makedirs(d)
+            if f in db_files:
+                continue
+            if os.path.isfile(f):
+                ext_md5 = online(r, p, 'md5')
+                if ext_md5:
+                    ext_md5 = ext_md5.rstrip('\n')
+                    int_db = open(f, 'rb').read()
+                    int_md5 = hashlib.md5(int_db).hexdigest()
+                    if ext_md5 != int_md5:
+                        if update_db(f, r, p):
+                            for n in dbs[r][p]['nodes']:
+                                output_add(output, n, msg_newer_ok % (r, p))
+                        else:
+                            for n in dbs[r][p]['nodes']:
+                                output_add(output, n, msg_newer_fail % (r, p))
+                else:
+                    for n in dbs[r][p]['nodes']:
+                        output_add(output, n, msg_newer_unkn % (r, p))
+                db_files.add(f)
+            else:
+                if update_db(f, r, p):
+                    for n in dbs[r][p]['nodes']:
+                        output_add(output, n, msg_nodb_ok % (r, p))
+                    db_files.add(f)
+                else:
+                    for n in dbs[r][p]['nodes']:
+                        output_add(output, n, msg_nodb_fail % (r, p))
     db = sqlite3.connect(':memory:')
     dbc = db.cursor()
     dbc.execute('''
@@ -111,6 +185,7 @@ def node_manager_init(conf):
 
 
 def output_add(output, node, message, key=None):
+    message = str(message)  # de-unicodize
     if node.cluster == 0:
         if 'fuel' not in output:
             if key:
