@@ -185,7 +185,8 @@ def node_manager_init(conf):
 
 
 def output_add(output, node, message, key=None):
-    message = str(message)  # de-unicodize
+    if isinstance(message, unicode):
+        message = str(message)  # de-unicodize
     if node.cluster == 0:
         if 'fuel' not in output:
             if key:
