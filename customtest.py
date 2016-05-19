@@ -267,6 +267,9 @@ def verify_versions(db, node, output=None):
         return output_add(output, node, 'versions data was not collected!')
     if not os.path.exists(node.mapscr[command]):
         return output_add(output, node, 'versions data output file missing!')
+    if os.stat(node.mapscr[command]).st_size == 0:
+        return output_add(output, node,
+                          'versions data empty, you may want to re-run!')
     with open(node.mapscr[command], 'r') as packagelist:
         reader = csv.reader(packagelist, delimiter='\t')
         if not hasattr(node, 'custom_packages'):
@@ -485,6 +488,9 @@ def update_candidates(db, node, mvd, output=None):
         return output_add(output, node, 'versions data was not collected!')
     if not os.path.exists(node.mapscr[command]):
         return output_add(output, node, 'versions data output file missing!')
+    if os.stat(node.mapscr[command]).st_size == 0:
+        return output_add(output, node,
+                          'versions data empty, you may want to re-run!')
     with open(node.mapscr[command], 'r') as packagelist:
         reader = csv.reader(packagelist, delimiter='\t')
         for p_name, p_version in reader:
