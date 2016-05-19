@@ -12,7 +12,8 @@ Python-based tool for Mirantis OpenStack which uses [Timmy](https://github.com/a
 - designed to run on Fuel node, if running from any other node, these requirements should be met:
   1. root access via public key to any node via Fuel admin network
   2. edit `config.yaml` to specify Fuel's IP address instead of `127.0.0.1`
-- install `git`
+- install git `yum install git`
+- for easy install, install pip `yum install python-pip`
 - install [Timmy](https://github.com/adobdin/timmy) - `pip install git+https://github.com/adobdin/timmy.git`
 - verify the installation - `python -c 'import timmy'` should not print tracebacks
 - if the installation for some reason was not successful, install Timmy manually (for ex. into /root folder):
