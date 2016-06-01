@@ -30,7 +30,7 @@ Python-based tool for Mirantis OpenStack which uses [Timmy](https://github.com/a
 - make sure you are ok to IO load your nodes (root partition), since the tool will do md5 verification of each installed package on each node (timmy uses `nice` and `ionice` to minimize the impact)
 - optionally copy and edit `/usr/share/timmy-customtest/timmy-config-default.yaml` - for example you can filter nodes by various parameters, then use `-c` option to specify your edited configuration file (if you have not installed via pip then simply edit `timmy-config.yaml`)
 - run the tool - `timmy-customtest`
-- if you cloned only, then cd into `timmy-customtest` folder and start the tool by running `./timmy-customtest` (executing from a different folder not yet supported)
+- if you cloned only, then cd into `timmy-customtest` folder and start the tool by running `./timmy-customtest`
 - optionally redirect output to a file: `timmy-customtest | tee results.yaml`
 - you can regenerate the report any time without actually collecting data from nodes again (connection to Fuel still needed to initialize the array of nodes) - to do this specify `-f` (`--fake`) option - this will use data previously collected in `/tmp/timmy/info` folder (unless you or Timmy have erased it)
 - be happy
