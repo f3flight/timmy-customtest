@@ -14,22 +14,27 @@ Python-based tool for Mirantis OpenStack which uses [Timmy](https://github.com/a
   2. edit `config.yaml` to specify Fuel's IP address instead of `127.0.0.1`
 - install git `yum install git`
 - for easy install, install pip `yum install python-pip`
-- install [Timmy](https://github.com/adobdin/timmy) - `pip install git+https://github.com/adobdin/timmy.git`
+- install [Timmy](https://github.com/adobdin/timmy) - `pip install git+https://github.com/adobdin/timmy`
 - verify the installation - `python -c 'import timmy'` should not print tracebacks
 - if the installation for some reason was not successful, install Timmy manually (for ex. into /root folder):
   1. `cd /root; git clone https://github.com/adobdin/timmy.git`
   2. `ln -s /root/timmy/timmy /usr/lib/python2.X/site-packages/timmy` # change X to the version of Python 2 available on server
   3. verify the installation - `python -c 'import timmy'` should not print tracebacks
 
-# Usage
+# Installation and updates
 - always update [Timmy](https://github.com/adobdin/timmy) before updating timmy-customtest
-- clone timmy-customtest: `git clone https://github.com/f3flight/timmy-customtest.git`
+- install timmy-customtest: `pip install git+https://github.com/f3flight/timmy-customtest`
+- alternatively, clone without installing: `git clone https://github.com/f3flight/timmy-customtest`
+
+# Usage
 - make sure you are ok to IO load your nodes (root partition), since the tool will do md5 verification of each installed package on each node (timmy uses `nice` and `ionice` to minimize the impact)
-- optionally edit `timmy-config.yaml` to your liking / requirements - for example you can filter nodes by various parameters
-- cd into `timmy-customtest` folder and start the tool by running `./customtest.py` (executing from a different folder not yet supported), optionally redirect output to a file: `./customtest.py | tee results.yaml`
-- you can regenerate the report any time without actually collecting data from nodes again (connection to Fuel still needed to initialize the array of nodes) - to do this specify `--fake` option - this will use data previously collected in `./info` folder (unless you have erased it)
+- optionally copy and edit `/usr/share/timmy-customtest/timmy-config-default.yaml` - for example you can filter nodes by various parameters, then use `-c` option to specify your edited configuration file (if you have not installed via pip then simply edit `timmy-config.yaml`)
+- run the tool - `timmy-customtest`
+- if you cloned only, then cd into `timmy-customtest` folder and start the tool by running `./timmy-customtest` (executing from a different folder not yet supported)
+- optionally redirect output to a file: `timmy-customtest | tee results.yaml`
+- you can regenerate the report any time without actually collecting data from nodes again (connection to Fuel still needed to initialize the array of nodes) - to do this specify `-f` (`--fake`) option - this will use data previously collected in `/tmp/timmy/info` folder (unless you or Timmy have erased it)
 - be happy
-- data (except stdout which you have to capture manually) is collected into `/tmp/timmy/info` if you decide to share it
+- data (except stdout which you have to capture manually) is collected into `/tmp/timmy/info` if you decide to use/share it
 
 # Reading the output
 Output is self-explanatory, you might want to view it with Vim and set up folding like so:
