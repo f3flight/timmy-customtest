@@ -10,8 +10,8 @@ d_files.append((os.path.join(d), ['timmy-config-default.yaml', 'rq.yaml']))
 d_files += [(os.path.join(d, root), [os.path.join(root, f) for f in files])
             for root, dirs, files in os.walk('db')]
 
-setup(name='timmy_customtest',
-      version='1.1.1',
+setup(name='timmy-customtest',
+      version='1.1.2',
       author='Dmitry Sutyagin',
       author_email='f3flight@gmail.com',
       license='Apache2',

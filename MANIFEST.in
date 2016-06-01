@@ -1,5 +1,5 @@
 recursive-include rq *
-recursive include db *
+recursive-include db *
 include README.md
 include timmy-config.yaml
 include timmy-config-default.yaml
