@@ -44,7 +44,7 @@ class Unbuffered(object):
         return getattr(self.stream, attr)
 
 
-def load_versions_db(nm):
+def load_versions_db(conf, nm):
     def fetch(url):
         try:
             return urllib2.urlopen(url).read()
@@ -74,7 +74,7 @@ def load_versions_db(nm):
                    'successfully downloaded from an online mirror.')
     msg_nodb_fail = ('no versions db found for MOS %s %s and could not '
                      'download from a mirror - this node will be skipped!')
-    db_dir = 'db/versions'
+    db_dir = os.path.join(conf['customtest_db_dir'], 'versions')
     dbs = {}
     db_files = set()
     output = {}
@@ -321,14 +321,16 @@ def verify_versions(db, node, output=None):
     return output
 
 
-def verify_md5_builtin_show_results(node, output=None):
+def verify_md5_builtin_show_results(conf, node, output=None):
     command = 'packages-md5-verify-'+node.os_platform
     if command not in node.mapscr:
         return output_add(output, node, 'builtin md5 data was not collected!')
     if not os.path.exists(node.mapscr[command]):
         return output_add(output, node,
                           'builtin md5 data output file missing!')
-    ex_filename = 'db/md5/%s/%s.filter' % (node.release, node.os_platform)
+    ex_filename = os.path.join(conf['customtest_db_dir'],
+                               'md5/%s/%s.filter' % (node.release,
+                                                     node.os_platform))
     # value-less dict
     ex_list = []
     if os.path.isfile(ex_filename):
@@ -555,17 +557,23 @@ def main(argv=None):
                               "collected data"),
                         action="store_true")
     parser.add_argument('-c', '--config',
-                        help=("Config file to use to override default "
-                              "configuration. When not specified - "
-                              "timmy-config.yaml is used."),
-                        default='timmy-config.yaml')
+                        help=('Config file to use to override default '
+                              'configuration. Default: /usr/share/'
+                              'timmy-customtest/timmy-config-default.yaml '
+                              '(if present, else ./timmy-config.yaml)'),
+                        default=('/usr/share/timmy-customtest/'
+                                 'timmy-config-default.yaml'))
+    if argv is None:
+        argv = sys.argv
     args = parser.parse_args(argv[1:])
+    if not os.path.isfile(args.config):
+        args.config = './timmy-config.yaml'
     sys.stdout.write('Getting node list: ')
     conf = load_conf(args.config)
     nm = node_manager_init(conf)
     print('DONE')
     sys.stdout.write('Loading necessary databases: ')
-    versions_db, output = load_versions_db(nm)
+    versions_db, output = load_versions_db(conf, nm)
     if not versions_db:
         print('Aborting.')
         return 1
@@ -579,7 +587,7 @@ def main(argv=None):
     perform('Versions verification analysis', verify_versions, nm,
             {'db': versions_db}, 'OK')
     perform('Built-in md5 verification analysis',
-            verify_md5_builtin_show_results, nm, None, 'OK')
+            verify_md5_builtin_show_results, nm, {'conf': conf}, 'OK')
     perform('[WIP] Database md5 verification analysis',
             verify_md5_with_db_show_results, nm, None, 'SKIPPED')
     mvd = max_versions_dict(versions_db)

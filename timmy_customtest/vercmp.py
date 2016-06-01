@@ -42,9 +42,9 @@ def rpm_vercmp(a, b):
                 return a_newer
         elif value == '~':
             if b_list[index] != '~':
-               return b_newer
+                return b_newer
             else:
-               continue
+                continue
         elif b_list[index] == '~':
             return a_newer
         else:
