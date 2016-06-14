@@ -3,7 +3,7 @@
 rpm -qa --qf "%{NAME}\t%{EPOCH}:%{VERSION}-%{RELEASE}\n" | sed 's!\t\(0\|(none)\):!\t!' | while read l
 do
   pkg=$(echo "$l" | cut -f1)
-  nice -n 19 ionice -c 3 rpm --verify $pkg | grep -v ' \.*/etc/| \.*/root/' | egrep '^..5' | while read line
+  nice -n 19 ionice -c 3 rpm --verify $pkg | grep -v ' \.*/etc/\| \.*/root/' | egrep '^..5' | while read line
   do
     # exclude .pyc files
     if [ "$(echo $line | grep -c '.pyc$')" -eq 1 ]
