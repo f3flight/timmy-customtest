@@ -490,7 +490,7 @@ def main(argv=None):
     else:
         pretty_print(output)
     print('Data collection:')
-    sys.stdout.write('  Collecting data from the nodes: ')
+    sys.stdout.write('  Collecting data from %d nodes: ' % len(nm.nodes))
     nm.run_commands(conf['outdir'], fake=args.fake)
     print('DONE')
     print('Results:')
