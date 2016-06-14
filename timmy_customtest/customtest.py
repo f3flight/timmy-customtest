@@ -44,7 +44,7 @@ class Unbuffered(object):
         return getattr(self.stream, attr)
 
 
-def load_versions_db(conf, nm):
+def load_versions_dict(conf, nm):
     def fetch(url):
         try:
             return urllib2.urlopen(url).read()
@@ -130,20 +130,7 @@ def load_versions_db(conf, nm):
                 else:
                     for n in dbs[r][p]['nodes']:
                         output_add(output, n, msg_nodb_fail % (r, p))
-    db = sqlite3.connect(':memory:')
-    dbc = db.cursor()
-    dbc.execute('''
-        CREATE TABLE versions
-        (
-            id INTEGER,
-            job_id INTEGER,
-            release TEXT,
-            mu INTEGER,
-            os TEXT,
-            package_name TEXT,
-            package_version TEXT,
-            package_filename TEXT
-        )''')
+    versions_dict = {}
     for db_file in db_files:
         import_db = sqlite3.connect(db_file)
         import_dbc = import_db.cursor()
@@ -158,23 +145,49 @@ def load_versions_db(conf, nm):
                 package_version,
                 package_filename
             FROM versions
+            ORDER BY package_name ASC, mu DESC
             ''')
         for row in r.fetchall():
-            dbc.execute('''
-            INSERT INTO versions
-            (
-                id,
-                job_id,
-                release,
-                mu,
-                os,
-                package_name,
-                package_version,
-                package_filename
-            ) VALUES (?,?,?,?,?,?,?,?)
-            ''', row)
-    db.commit()
-    return db, output
+            release = row[2]
+            mu = row[3]
+            os_platform = row[4]
+            p_name = row[5]
+            p_version = row[6]
+            if release not in versions_dict:
+                versions_dict[release] = {}
+            vdr = versions_dict[release]
+            if os_platform not in vdr:
+                vdr[os_platform] = {}
+            if p_name not in vdr[os_platform]:
+                vdr[os_platform][p_name] = {}
+            p_dict = vdr[os_platform][p_name]
+            if 'mu' not in p_dict:
+                p_dict['mu'] = set()
+            p_dict['mu'].add(mu)
+            if 'versions' not in p_dict:
+                p_dict['versions'] = {}
+            if p_version not in p_dict['versions']:
+                p_dict['versions'][p_version] = set()
+            if 'max_version' not in p_dict:
+                p_dict['max_version'] = p_version
+            else:
+                r = vercmp(os_platform, p_version, p_dict['max_version'])
+                max_v_mus = p_dict['versions'][p_dict['max_version']]
+                if r > 0 and mu not in max_v_mus:
+                    '''Should never happen since the MU order is DESC.
+                    If this happens then it means that package version was
+                    lowered in a subsequent MU, which is against our policy as
+                    of Feb 2016.'''
+                    logging.warning('Downgrade detected in release '
+                                    '%s, os %s, %s to %s, package %s - '
+                                    "version '%s' was downgraded to '%s'\n"
+                                    % (release, os_platform, print_mu(mu),
+                                       print_mu(min(max_v_mus)), p_name,
+                                       p_version, p_dict['max_version']))
+                elif r > 0:
+                    p_dict['max_version'] = p_version
+            p_dict['versions'][p_version].add(mu)
+    return versions_dict, output
 
 
 def node_manager_init(conf):
@@ -236,33 +249,30 @@ def output_prepare(output):
                 env[node_str] = env.pop(n_id)['output']
 
 
-def pretty_print(output):
+def pretty_print(output, pre_indent=4):
     sys.stdout.write('\n')
     output_prepare(output)
     for line in yaml.dump(output, default_flow_style=False).split('\n'):
         if len(line) > 0:
             if re.match('^ *-', line):
                 # force ident for block sequences
-                print('    '+line)
-            else:
-                print('  '+line)
+                line = '  ' + line
+            print(' ' * pre_indent + line)
 
 
 def fstrip(text_file):
     return [line.rstrip('\n') for line in text_file]
 
 
-def verify_versions(db, node, output=None):
-    versions_db_cursor = db.cursor()
-    db_has_release = versions_db_cursor.execute('''
-        SELECT COUNT(*) FROM versions WHERE release = ? and os = ?
-        ''', (node.release, node.os_platform)).fetchall()
-    if db_has_release[0][0] == 0:
+def verify_versions(node, versions_dict, output=None):
+    if (node.release not in versions_dict or node.os_platform not in
+                                             versions_dict[node.release]):
         return output_add(output, node,
                           ('the database does not have any data for MOS '
                            'release %s for %s!' % (str(node.release),
                                                    str(node.os_platform))))
-    command = 'packagelist-'+node.os_platform
+    vd = versions_dict[node.release][node.os_platform]
+    command = 'packagelist-' + node.os_platform
     if command not in node.mapscr:
         return output_add(output, node, 'versions data was not collected!')
     if not os.path.exists(node.mapscr[command]):
@@ -275,49 +285,16 @@ def verify_versions(db, node, output=None):
         if not hasattr(node, 'custom_packages'):
             node.custom_packages = {}
         for p_name, p_version in reader:
-            match = versions_db_cursor.execute(
-                '''SELECT * FROM versions
-                WHERE release = ?
-                    AND os = ?
-                    AND package_name = ?
-                    AND package_version = ?''',
-                (node.release,
-                 node.os_platform,
-                 p_name,
-                 p_version)).fetchall()
-            if not match:
-                # try all versions for current release
-                match = versions_db_cursor.execute(
-                    '''SELECT * FROM versions
-                    WHERE release = ?
-                    AND os = ?
-                    AND package_name = ?''',
-                    (node.release, node.os_platform, p_name)).fetchall()
-                if match:
+            if p_name in vd:
+                if p_version not in vd[p_name]['versions']:
                     if p_name not in node.custom_packages:
                         node.custom_packages[p_name] = {}
                         node.custom_packages[p_name]['reasons'] = set()
                     node.custom_packages[p_name]['version'] = p_version
-                    '''check for a divergent package introduced in MUs
-                    but not present in GA'''
-                    match = versions_db_cursor.execute(
-                        '''SELECT * FROM versions
-                        WHERE release = ?
-                        AND os = ?
-                        AND package_name = ?
-                        AND mu = 0''',
-                        (node.release, node.os_platform, p_name)).fetchall()
-                    if match:
-                        node.custom_packages[p_name]['reasons'].add('version')
-                        output_add(output, node, ("package version not in db"
-                                                  " - %s, version '%s'" %
-                                                  (p_name, str(p_version))))
-                    else:
-                        # divergent package - skipping
+                    if 0 not in vd[p_name]['mu']:
                         node.custom_packages[p_name]['reasons'].add('upstream')
-                else:
-                    # unknown package, nothing to compare with, so skipping.
-                    pass
+                    else:
+                        node.custom_packages[p_name]['reasons'].add('version')
     return output
 
 
@@ -361,68 +338,9 @@ def verify_md5_builtin_show_results(conf, node, output=None):
     return output
 
 
-def verify_md5_with_db_show_results(node, output=None):
-    # not implemented
-    return
-
-
 def print_mu(mu):
     return 'MU'+str(mu) if mu > 0 else 'GA'
 
-
-def max_versions_dict(versions_db):
-    '''returns a dict hierarchy containing package names and their highest
-    available versions
-    structure is max_version[release][os][package_name] = {'version', 'mu'}
-    '''
-
-    def put(version, mu, element=None):
-        if not element:
-            element = {}
-        element['version'] = version
-        element['mu'] = mu
-        return element
-
-    versions_db_cursor = versions_db.cursor()
-    data = versions_db_cursor.execute('''
-        SELECT release, os, package_name, package_version, mu
-        FROM versions
-        ORDER BY package_name ASC, mu DESC
-        ''').fetchall()
-    max_version = {}
-    for el in data:
-        release = el[0]
-        os = el[1]
-        p_name = el[2]
-        p_ver = el[3]
-        mu = el[4]
-        if release not in max_version:
-            max_version[release] = {}
-        if os not in max_version[release]:
-            max_version[release][os] = {}
-        if p_name not in max_version[release][os]:
-            max_version[release][os][p_name] = put(p_ver, mu)
-        else:
-            element = max_version[release][os][p_name]
-            result = vercmp(os, p_ver, element['version'])
-            if result > 0:
-                '''Should never happen since the MU order is DESC.
-                If this happens then it means that package version was
-                lowered in a subsequent MU, which is against our policy as
-                of Feb 2016.
-                '''
-                if element['mu'] != mu:
-                    sys.stderr.write('WARNING! Downgrade detected in release '
-                                     '%s, os %s, %s to %s, package %s - '
-                                     "version '%s' was downgraded to '%s'\n"
-                                     % (release, os, print_mu(mu),
-                                        print_mu(element['mu']),
-                                        p_name, p_ver, element['version']))
-                put(p_ver, mu, max_version[release][os][p_name])
-            elif result == 0 and mu < element['mu']:
-                # write down in which MU this version was introduced first
-                put(p_ver, mu, max_version[release][os][p_name])
-    return max_version
 
 
 def get_reasons_string(reasons_list):
@@ -432,22 +350,20 @@ def get_reasons_string(reasons_list):
         return 'custom ['+', '.join(reasons_list)+']'
 
 
-def mu_safety_check(node, mvd, output=None):
+def mu_safety_check(node, versions_dict, output=None):
 
-    def _compare_with_mvd(mvd_package, p_name, p_data):
+    def _compare_with_mvd(vd_package, p_name, p_data):
         p_version = p_data['version']
         p_reasons = get_reasons_string(p_data['reasons'])
-        r = vercmp(node.os_platform, mvd_package['version'], p_version)
+        r = vercmp(node.os_platform, vd_package['max_version'], p_version)
+        mu = min(vd_package['versions'][vd_package['max_version']])
         if r > 0 and p_reasons != 'upstream':
             output_add(
                 output,
                 node,
                 str("%s %s '%s' will be overwritten by %s version '%s'" % (
-                    p_reasons,
-                    p_name,
-                    p_version,
-                    print_mu(mvd_package['mu']),
-                    mvd_package['version'])))
+                    p_reasons, p_name, p_version, print_mu(mu),
+                    vd_package['max_version'])))
         elif r < 0 or (r == 0 and p_reasons == 'upstream'):
             # case in brackets is highly unlikely
             if p_reasons == 'upstream':
@@ -459,32 +375,31 @@ def mu_safety_check(node, mvd, output=None):
                            'being installed')
             output_add(output, node,
                        str(message % (p_reasons, p_name, p_version,
-                                      print_mu(mvd_package['mu']),
-                                      mvd_package['version'])))
+                                      print_mu(mu),
+                                      vd_package['max_version'])))
 
     if hasattr(node, 'custom_packages'):
         for p_name, p_data in node.custom_packages.items():
-            if node.release in mvd:
-                if node.os_platform in mvd[node.release]:
-                    if p_name in mvd[node.release][node.os_platform]:
-                        mvd_p = mvd[node.release][node.os_platform][p_name]
-                        if mvd_p['mu'] != 'GA':
-                            _compare_with_mvd(mvd_p, p_name, p_data)
+            if node.release in versions_dict:
+                if node.os_platform in versions_dict[node.release]:
+                    vd = versions_dict[node.release][node.os_platform]
+                    if p_name in vd:
+                        vd_p = vd[p_name]
+                        if len(vd_p['mu']) > 1 or vd_p['mu'][0]:
+                            _compare_with_mvd(vd_p, p_name, p_data)
     return output
 
 
-def update_candidates(db, node, mvd, output=None):
+def update_candidates(node, versions_dict, output=None):
     # shortening fucntion name for pep8's sake...
     grs = get_reasons_string
-    versions_db_cursor = db.cursor()
-    db_has_release = versions_db_cursor.execute('''
-        SELECT COUNT(*) FROM versions WHERE release = ? and os = ?
-        ''', (node.release, node.os_platform)).fetchall()
-    if db_has_release[0][0] == 0:
+    if (node.release not in versions_dict or node.os_platform not in
+                                             versions_dict[node.release]):
             return output_add(output, node,
                               ('the database does not have any data for MOS '
                                'release %s, os %s!' % (str(node.release),
                                                        str(node.os_platform))))
+    vd = versions_dict[node.release][node.os_platform]
     command = 'packagelist-'+node.os_platform
     if command not in node.mapscr:
         return output_add(output, node, 'versions data was not collected!')
@@ -496,41 +411,33 @@ def update_candidates(db, node, mvd, output=None):
     with open(node.mapscr[command], 'r') as packagelist:
         reader = csv.reader(packagelist, delimiter='\t')
         for p_name, p_version in reader:
-            if p_name in mvd[node.release][node.os_platform]:
-                mvd_package = mvd[node.release][node.os_platform][p_name]
-                r = vercmp(node.os_platform, mvd_package['version'], p_version)
+            if p_name in vd:
+                vd_package = vd[p_name]
+                r = vercmp(node.os_platform, vd_package['max_version'],
+                           p_version)
                 p_state = ''
                 if (hasattr(node, 'custom_packages') and
                         p_name in node.custom_packages):
                     p_state = ('%s ' %
                                (grs(node.custom_packages[p_name]['reasons'])))
-                p_known_mu = versions_db_cursor.execute(
-                    '''SELECT mu FROM versions WHERE
-                        release = ?
-                        and os = ?
-                        and package_name = ?
-                        and package_version = ?
-                    ORDER BY mu
-                    LIMIT 1
-                    ''', (node.release, node.os_platform, p_name,
-                          p_version)).fetchone()
-                if p_known_mu:
-                    if p_known_mu[0]:
-                        print_p_mu = 'MU%s' % (p_known_mu[0])
+                if p_version in vd_package['versions']:
+                    p_mu = min(vd_package['versions'][p_version])
+                    if p_mu:
+                        print_p_mu = 'MU%s' % (p_mu)
                     else:
                         print_p_mu = 'GA'
                 else:
                     print_p_mu = 'N/A'
                 if r > 0 or (r < 0 and p_state == 'upstream '):
-                    output_add(
-                        output,
-                        node,
-                        {'%s%s' % (p_state, p_name): str(
-                            "%s to %s (from '%s' to '%s')" %
-                            (print_p_mu,
-                             print_mu(mvd_package['mu']),
-                             p_version,
-                             mvd_package['version']))})
+                    mus = vd_package['versions'][vd_package['max_version']]
+                    mu = min(mus)
+                    output_add(output, node,
+                               {'%s%s' % (p_state, p_name): str(
+                                   "%s to %s (from '%s' to '%s')" %
+                                   (print_p_mu,
+                                    print_mu(mu),
+                                    p_version,
+                                    vd_package['max_version']))})
     return output
 
 
@@ -551,6 +458,7 @@ def perform(description, function, nm, args, ok_message):
 
 @interrupt_wrapper
 def main(argv=None):
+    sys.stdout = Unbuffered(sys.stdout)
     parser = argparse.ArgumentParser()
     parser.add_argument('-f', '--fake',
                         help=("Do not perform remote commands, use already "
@@ -568,35 +476,35 @@ def main(argv=None):
     args = parser.parse_args(argv[1:])
     if not os.path.isfile(args.config):
         args.config = './timmy-config.yaml'
-    sys.stdout.write('Getting node list: ')
+    print('Initialization:')
+    sys.stdout.write('  Getting node list: ')
     conf = load_conf(args.config)
     nm = node_manager_init(conf)
     print('DONE')
-    sys.stdout.write('Loading necessary databases: ')
-    versions_db, output = load_versions_db(conf, nm)
-    if not versions_db:
+    sys.stdout.write('  Loading necessary databases: ')
+    versions_dict, output = load_versions_dict(conf, nm)
+    if not versions_dict:
         print('Aborting.')
         return 1
     if not output:
         print('DONE')
     else:
         pretty_print(output)
-    sys.stdout.write('Collecting data from the nodes: ')
+    print('Data collection:')
+    sys.stdout.write('  Collecting data from the nodes: ')
     nm.run_commands(conf['outdir'], fake=args.fake)
     print('DONE')
-    perform('Versions verification analysis', verify_versions, nm,
-            {'db': versions_db}, 'OK')
-    perform('Built-in md5 verification analysis',
+    print('Results:')
+    perform('  Versions verification analysis', verify_versions, nm,
+            {'versions_dict': versions_dict}, 'OK')
+    perform('  Built-in md5 verification analysis',
             verify_md5_builtin_show_results, nm, {'conf': conf}, 'OK')
-    perform('[WIP] Database md5 verification analysis',
-            verify_md5_with_db_show_results, nm, None, 'SKIPPED')
-    mvd = max_versions_dict(versions_db)
-    perform('MU safety analysis', mu_safety_check, nm, {'mvd': mvd}, 'OK')
-    perform('Potential updates', update_candidates, nm,
-            {'db': versions_db, 'mvd': mvd}, 'ALL NODES UP-TO-DATE')
+    perform('  MU safety analysis', mu_safety_check, nm,
+            {'versions_dict': versions_dict}, 'OK')
+    perform('  Potential updates', update_candidates, nm,
+            {'versions_dict': versions_dict}, 'ALL NODES UP-TO-DATE')
     return 0
 
 
 if __name__ == '__main__':
-    sys.stdout = Unbuffered(sys.stdout)
     exit(main(sys.argv))
