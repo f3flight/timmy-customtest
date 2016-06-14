@@ -265,8 +265,8 @@ def fstrip(text_file):
 
 
 def verify_versions(node, versions_dict, output=None):
-    if (node.release not in versions_dict or node.os_platform not in
-                                             versions_dict[node.release]):
+    if (node.release not in versions_dict or (node.os_platform not in
+                                              versions_dict[node.release])):
         return output_add(output, node,
                           ('the database does not have any data for MOS '
                            'release %s for %s!' % (str(node.release),
@@ -342,7 +342,6 @@ def print_mu(mu):
     return 'MU'+str(mu) if mu > 0 else 'GA'
 
 
-
 def get_reasons_string(reasons_list):
     if 'upstream' in reasons_list:
         return 'upstream'
@@ -393,8 +392,8 @@ def mu_safety_check(node, versions_dict, output=None):
 def update_candidates(node, versions_dict, output=None):
     # shortening fucntion name for pep8's sake...
     grs = get_reasons_string
-    if (node.release not in versions_dict or node.os_platform not in
-                                             versions_dict[node.release]):
+    if (node.release not in versions_dict or (node.os_platform not in
+                                              versions_dict[node.release])):
             return output_add(output, node,
                               ('the database does not have any data for MOS '
                                'release %s, os %s!' % (str(node.release),
