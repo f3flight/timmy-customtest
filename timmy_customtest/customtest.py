@@ -198,8 +198,6 @@ def node_manager_init(conf):
 
 
 def output_add(output, node, message, key=None):
-    if isinstance(message, unicode):
-        message = str(message)  # de-unicodize
     if node.cluster == 0:
         if 'fuel' not in output:
             if key:
@@ -252,7 +250,7 @@ def output_prepare(output):
 def pretty_print(output, pre_indent=4):
     sys.stdout.write('\n')
     output_prepare(output)
-    for line in yaml.dump(output, default_flow_style=False).split('\n'):
+    for line in yaml.safe_dump(output, default_flow_style=False).split('\n'):
         if len(line) > 0:
             if re.match('^ *-', line):
                 # force ident for block sequences
