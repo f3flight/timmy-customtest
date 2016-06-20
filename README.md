@@ -10,21 +10,24 @@ Python-based tool for Mirantis OpenStack which uses [Timmy](https://github.com/a
 
 # Prerequisites
 - designed to run on Fuel node, if running from any other node, these requirements should be met:
-  1. root access via public key to any node via Fuel admin network
-  2. edit `config.yaml` to specify Fuel's IP address instead of `127.0.0.1`
+  1. python 2.6 or 2.7
+  2. root access via public key to any node via Fuel admin network
+  3. edit `config.yaml` to specify Fuel's IP address instead of `127.0.0.1`
+  4. PyYAML python module should be installed (requirement for Timmy)
 - install git `yum install git`
 - for easy install, install pip `yum install python-pip`
 - install [Timmy](https://github.com/adobdin/timmy) - `pip install git+https://github.com/adobdin/timmy`
 - verify the installation - `python -c 'import timmy'` should not print tracebacks
 - if the installation for some reason was not successful, install Timmy manually (for ex. into /root folder):
   1. `cd /root; git clone https://github.com/adobdin/timmy.git`
-  2. `ln -s /root/timmy/timmy /usr/lib/python2.X/site-packages/timmy` # change X to the version of Python 2 available on server
+  2. `ln -s /root/timmy/timmy /usr/lib/python2.X/site-packages/timmy` # change X to the version of Python 2 available on the system
   3. verify the installation - `python -c 'import timmy'` should not print tracebacks
 
 # Installation and updates
-- always update [Timmy](https://github.com/adobdin/timmy) before updating timmy-customtest
+- always update [Timmy](https://github.com/adobdin/timmy) before updating timmy-customtest. To update Timmy if it is installed by pip, uninstall and reinstall: `pip uninstall timmy; pip install timmy`. If using git directly, do `git pull` in the folder where you cloned Timmy.
 - install timmy-customtest: `pip install git+https://github.com/f3flight/timmy-customtest`
 - alternatively, clone without installing: `git clone https://github.com/f3flight/timmy-customtest`
+- To update already installed timmy-customtest, use the same methods as for Timmy (mentined above)
 
 # Usage
 - make sure you are ok to IO load your nodes (root partition), since the tool will do md5 verification of each installed package on each node (timmy uses `nice` and `ionice` to minimize the impact)
