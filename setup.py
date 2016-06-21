@@ -11,7 +11,7 @@ d_files += [(os.path.join(d, root), [os.path.join(root, f) for f in files])
             for root, dirs, files in os.walk('db')]
 
 setup(name='timmy-customtest',
-      version='1.2.0',
+      version='1.2.1',
       author='Dmitry Sutyagin',
       author_email='f3flight@gmail.com',
       license='Apache2',
