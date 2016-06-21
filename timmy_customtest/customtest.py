@@ -382,7 +382,7 @@ def mu_safety_check(node, versions_dict, output=None):
                     vd = versions_dict[node.release][node.os_platform]
                     if p_name in vd:
                         vd_p = vd[p_name]
-                        if len(vd_p['mu']) > 1 or vd_p['mu'][0]:
+                        if max(vd_p['mu']) > 0:
                             _compare_with_mvd(vd_p, p_name, p_data)
     return output
 
