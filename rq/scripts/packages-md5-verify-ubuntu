@@ -17,8 +17,11 @@ do
       continue
     fi
 
+    #exclude ./etc (elasticsearch packaging issue)
+    result="$(echo "$result" | grep -v '^\./etc/')"
+
     #exclude .pyc files
-    result="$(echo "$result" | grep -v '.pyc$')"
+    result="$(echo "$result" | grep -v '\.pyc$')"
 
     #exclude bad formatted / empty md5sum files and md5sum summary lines
     result="$(echo "$result" | grep -v 'did NOT match\|md5sum: ')"
