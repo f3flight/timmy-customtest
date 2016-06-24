@@ -1,0 +1,8 @@
+- package_name: 'perl'
+  exclude_regex:
+    - 'usr/share/man/man1/pod2latex\.1\.gz.*$'
+    - 'usr/bin/pod2latex.*$'
+- package_name: 'vim-tiny'
+  exclude_regex: 
+    - 'usr/share/vim/vim74/doc/help\.txt.*$'
+    - 'usr/share/vim/vim74/doc/tags.*$'
