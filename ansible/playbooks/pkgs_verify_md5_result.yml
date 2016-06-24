@@ -1,0 +1,7 @@
+- hosts: all
+  tasks:
+    - include: tasks/pkgs_verify_md5.yml
+    - name: 'show results'
+      when: pkgs_verify_md5_result.changed
+      debug:
+        msg: '{{ pkgs_verify_md5_result.result }}'

@@ -1,0 +1,6 @@
+- package_name: 'fuel-misc'
+  exclude_regex:
+    - '/sbin/ifdown-local.*$'
+    - '/sbin/ifup-local.*$'
+- package_name: 'unbound-libs'
+  exclude_regex: '/var/lib/unbound/root\.key.*$'
