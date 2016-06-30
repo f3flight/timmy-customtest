@@ -18,6 +18,7 @@ setup(name='timmy-customtest',
       url='https://github.com/f3flight/timmy-customtest',
       long_description=open('README.md').read(),
       packages=["timmy_customtest"],
+      install_requires=['timmy'],
       data_files=d_files,
       include_package_data=True,
       entry_points={'console_scripts':
