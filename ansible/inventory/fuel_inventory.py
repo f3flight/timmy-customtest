@@ -54,11 +54,12 @@ def get_inventory_json():
                 inventory[role] = {}
                 inventory[role]['hosts'] = []
             inventory[role]['hosts'].append(node['fqdn'])
-        cluster = 'cluster_%d' % node['cluster']
-        if cluster not in inventory:
-            inventory[cluster] = {}
-            inventory[cluster]['hosts'] = []
-        inventory[cluster]['hosts'].append(node['fqdn'])
+        if node['cluster']:
+            cluster = 'cluster_%d' % node['cluster']
+            if cluster not in inventory:
+                inventory[cluster] = {}
+                inventory[cluster]['hosts'] = []
+            inventory[cluster]['hosts'].append(node['fqdn'])
     add_fuel_to_inventory(inventory, fc)
     return json.dumps(inventory, indent=2)
 
