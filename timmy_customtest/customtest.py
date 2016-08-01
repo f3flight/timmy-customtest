@@ -269,6 +269,7 @@ def verify_versions(node, versions_dict, output=None):
                           ('the database does not have any data for MOS '
                            'release %s for %s!' % (str(node.release),
                                                    str(node.os_platform))))
+    msg_custom = "installed version '%s' is not part of MOS %s"
     vd = versions_dict[node.release][node.os_platform]
     command = 'packagelist-' + node.os_platform
     if command not in node.mapscr:
@@ -293,6 +294,9 @@ def verify_versions(node, versions_dict, output=None):
                         node.custom_packages[p_name]['reasons'].add('upstream')
                     else:
                         node.custom_packages[p_name]['reasons'].add('version')
+                        output_add(output, node,
+                                   {p_name: str(msg_custom % (str(p_version),
+                                                              node.release))})
     return output
 
 
