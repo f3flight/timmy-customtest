@@ -4,6 +4,7 @@
 rqdir: '/usr/share/timmy-customtest/rq'
 rqfile: '/usr/share/timmy-customtest/rq.yaml'
 customtest_db_dir: '/usr/share/timmy-customtest/db'
+outdir: '/tmp/timmy-customtest/info'
 hard_filter:
     status: ['ready']
     online: True
