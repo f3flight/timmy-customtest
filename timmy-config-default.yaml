@@ -2,7 +2,9 @@
 # fuel_pass: 'admin'
 # fuel_ip: '127.0.0.1'
 rqdir: '/usr/share/timmy-customtest/rq'
-rqfile: '/usr/share/timmy-customtest/rq.yaml'
+rqfile:
+  - file: '/usr/share/timmy-customtest/rq.yaml'
+    default: False
 customtest_db_dir: '/usr/share/timmy-customtest/db'
 outdir: '/tmp/timmy-customtest/info'
 hard_filter:
