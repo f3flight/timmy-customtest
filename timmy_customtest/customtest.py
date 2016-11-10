@@ -20,7 +20,7 @@ import logging
 import sys
 from timmy import nodes
 from timmy.conf import load_conf
-from timmy.tools import interrupt_wrapper
+from timmy.tools import signal_wrapper
 import urllib2
 import hashlib
 import csv
@@ -457,7 +457,7 @@ def perform(description, function, nm, args, ok_message):
         print(ok_message)
 
 
-@interrupt_wrapper
+@signal_wrapper
 def main(argv=None):
     sys.stdout = Unbuffered(sys.stdout)
     parser = argparse.ArgumentParser()
