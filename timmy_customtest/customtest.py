@@ -18,9 +18,8 @@
 
 import logging
 import sys
-from timmy import nodes
-from timmy.conf import load_conf
 from timmy.tools import signal_wrapper
+from timmy.modules import fuel
 import urllib2
 import hashlib
 import csv
@@ -193,7 +192,7 @@ def load_versions_dict(conf, nm):
 def node_manager_init(conf):
     logging.basicConfig(level=logging.WARNING,
                         format='%(asctime)s %(levelname)s %(message)s')
-    nm = nodes.NodeManager(conf=conf)
+    nm = fuel.NodeManager(conf=conf)
     return nm
 
 
@@ -479,7 +478,7 @@ def main(argv=None):
         args.config = './timmy-config.yaml'
     print('Initialization:')
     sys.stdout.write('  Getting node list: ')
-    conf = load_conf(args.config)
+    conf = fuel.NodeManager.load_conf(args.config)
     nm = node_manager_init(conf)
     print('DONE')
     sys.stdout.write('  Loading necessary databases: ')
