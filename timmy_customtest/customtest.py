@@ -273,12 +273,12 @@ def verify_versions(node, versions_dict, output=None):
     command = 'packagelist-' + node.os_platform
     if command not in node.mapscr:
         return output_add(output, node, 'versions data was not collected!')
-    if not os.path.exists(node.mapscr[command]):
+    if not os.path.exists(node.mapscr[command]['output_path']):
         return output_add(output, node, 'versions data output file missing!')
-    if os.stat(node.mapscr[command]).st_size == 0:
+    if os.stat(node.mapscr[command]['output_path']).st_size == 0:
         return output_add(output, node,
                           'versions data empty, you may want to re-run!')
-    with open(node.mapscr[command], 'r') as packagelist:
+    with open(node.mapscr[command]['output_path'], 'r') as packagelist:
         reader = csv.reader(packagelist, delimiter='\t')
         if not hasattr(node, 'custom_packages'):
             node.custom_packages = {}
@@ -303,7 +303,7 @@ def verify_md5_builtin_show_results(conf, node, output=None):
     command = 'packages-md5-verify-'+node.os_platform
     if command not in node.mapscr:
         return output_add(output, node, 'builtin md5 data was not collected!')
-    if not os.path.exists(node.mapscr[command]):
+    if not os.path.exists(node.mapscr[command]['output_path']):
         return output_add(output, node,
                           'builtin md5 data output file missing!')
     ex_filename = os.path.join(conf['customtest_db_dir'],
@@ -315,8 +315,8 @@ def verify_md5_builtin_show_results(conf, node, output=None):
         with open(ex_filename, 'r') as ex_file:
             for line in fstrip(ex_file):
                 ex_list.append(line)
-    if os.stat(node.mapscr[command]).st_size > 0:
-        with open(node.mapscr[command], 'r') as md5_file:
+    if os.stat(node.mapscr[command]['output_path']).st_size > 0:
+        with open(node.mapscr[command]['output_path'], 'r') as md5_file:
             for line in fstrip(md5_file):
                 excluded = False
                 for ex_regexp in ex_list:
@@ -403,12 +403,12 @@ def update_candidates(node, versions_dict, output=None):
     command = 'packagelist-'+node.os_platform
     if command not in node.mapscr:
         return output_add(output, node, 'versions data was not collected!')
-    if not os.path.exists(node.mapscr[command]):
+    if not os.path.exists(node.mapscr[command]['output_path']):
         return output_add(output, node, 'versions data output file missing!')
-    if os.stat(node.mapscr[command]).st_size == 0:
+    if os.stat(node.mapscr[command]['output_path']).st_size == 0:
         return output_add(output, node,
                           'versions data empty, you may want to re-run!')
-    with open(node.mapscr[command], 'r') as packagelist:
+    with open(node.mapscr[command]['output_path'], 'r') as packagelist:
         reader = csv.reader(packagelist, delimiter='\t')
         for p_name, p_version in reader:
             if p_name in vd:
