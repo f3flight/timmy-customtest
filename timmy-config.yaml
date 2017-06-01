@@ -1,6 +1,6 @@
 # fuel_user: 'admin'
 # fuel_pass: 'admin'
-fuel_ip: '10.20.16.2'
+# fuel_ip: '127.0.0.1'
 rqdir: './rq'
 rqfile:
   - file: './rq.yaml'
